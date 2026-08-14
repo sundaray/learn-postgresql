@@ -1,0 +1,11 @@
+node_modules
+dist
+.output
+.nitro
+.tanstack
+.vite
+.env
+*.log
+.DS_Store
+src/routeTree.gen.ts
+.claude/settings.local.json
