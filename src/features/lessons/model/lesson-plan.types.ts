@@ -7,15 +7,6 @@ export type LessonStepKind =
   | 'compare'
   | 'reflect'
 
-export type QueryPlanNode =
-  | 'Seq Scan'
-  | 'Index Scan'
-  | 'Index Only Scan'
-  | 'Bitmap Index Scan'
-  | 'Bitmap Heap Scan'
-  | 'Sort'
-  | 'Incremental Sort'
-
 export type NonEmptyReadonlyArray<T> = readonly [T, ...T[]]
 
 export type LessonStatement =
@@ -25,36 +16,6 @@ export type LessonStatement =
   | 'SELECT'
   | 'CREATE INDEX'
   | 'DROP INDEX'
-
-export type LessonCompletionRule =
-  | {
-      kind: 'statement-executed'
-      statement: LessonStatement
-    }
-  | {
-      kind: 'plan-node'
-      anyOf: NonEmptyReadonlyArray<QueryPlanNode>
-      relation?: string
-      advisory?: boolean
-    }
-  | {
-      kind: 'plan-uses-index'
-      indexName: string
-      anyOf: NonEmptyReadonlyArray<QueryPlanNode>
-      advisory?: boolean
-    }
-  | {
-      kind: 'index-exists'
-      indexName: string
-    }
-  | {
-      kind: 'index-absent'
-      indexName: string
-    }
-  | {
-      kind: 'manual-reflection'
-      prompt: string
-    }
 
 export type LessonStepPlan = {
   id: string
@@ -66,7 +27,6 @@ export type LessonStepPlan = {
   solutionSql?: string
   expectedObservations: string[]
   explanation: string[]
-  completion: LessonCompletionRule[]
   hint?: string
   caution?: string
 }
@@ -82,9 +42,37 @@ export type InterviewCheck = {
   answerPoints: string[]
 }
 
+export type LessonListItem = {
+  paragraphs: string[]
+}
+
+export type LessonContentBlock =
+  | {
+      type: 'paragraph'
+      text: string
+    }
+  | {
+      type: 'note'
+      text: string
+    }
+  | {
+      type: 'unordered-list'
+      items: LessonListItem[]
+    }
+  | {
+      type: 'ordered-list'
+      items: LessonListItem[]
+    }
+  | {
+      type: 'code'
+      language: 'sql' | 'text'
+      contents: string
+    }
+
 export type LessonSection = {
   title: string
-  paragraphs: string[]
+  paragraphs?: string[]
+  content?: LessonContentBlock[]
 }
 
 /** Identifies a diagram component rendered by the lesson panel. */
@@ -97,6 +85,7 @@ export type LessonPlan = {
   title: string
   introduction: string[]
   introDiagram?: LessonDiagramId
+  content?: LessonContentBlock[]
   sections?: LessonSection[]
   category?: string
   summary?: string

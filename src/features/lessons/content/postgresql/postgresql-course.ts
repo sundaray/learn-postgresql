@@ -1,6 +1,8 @@
 import type { CoursePlan } from '../../model/lesson-plan.types'
 
 import { howPostgresqlExecutesSqlLesson } from './01-how-postgresql-executes-sql'
+import { understandingPostgresqlExecutionPlansLesson } from './02-understanding-postgresql-execution-plans'
+import { usingExplainAnalyzeToMeasureActualExecutionLesson } from './03-using-explain-analyze-to-measure-actual-execution'
 
 export const postgresqlCourse: CoursePlan = {
   id: 'postgresql-fundamentals',
@@ -50,5 +52,9 @@ export const postgresqlCourse: CoursePlan = {
     distributions: [],
     requirements: [],
   },
-  lessons: [howPostgresqlExecutesSqlLesson],
+  lessons: [
+    howPostgresqlExecutesSqlLesson,
+    understandingPostgresqlExecutionPlansLesson,
+    usingExplainAnalyzeToMeasureActualExecutionLesson,
+  ],
 }

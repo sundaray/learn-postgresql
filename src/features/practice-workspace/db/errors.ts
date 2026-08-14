@@ -7,24 +7,6 @@ export class StatementFailed extends TaggedError('StatementFailed')<{
   position: number | null
 }> {}
 
-/** The pg_indexes lookup behind the index completion checks failed. */
-export class IndexNamesUnavailable extends TaggedError('IndexNamesUnavailable')<{
-  cause: unknown
-  message: string
-}> {}
-
-/** Re-running a bare SELECT under EXPLAIN to recover a plan failed. */
-export class ExplainUnavailable extends TaggedError('ExplainUnavailable')<{
-  cause: unknown
-  message: string
-}> {}
-
-/** EXPLAIN (FORMAT JSON) returned a column that was not valid JSON. */
-export class InvalidPlanJson extends TaggedError('InvalidPlanJson')<{
-  cause: unknown
-  message: string
-}> {}
-
 /** The PGlite instance never reached a ready state. */
 export class DatabaseStartFailed extends TaggedError('DatabaseStartFailed')<{
   cause: unknown

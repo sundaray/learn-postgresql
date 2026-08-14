@@ -16,3 +16,14 @@ export function findLessonBySlug(
     (lesson) => lesson.slug === lessonSlug,
   )
 }
+
+/**
+ * The one line that stands in for a lesson in link lists and meta tags. Lesson
+ * prose is written with markdown emphasis, which has to come off before the
+ * text is shown outside a lesson panel.
+ */
+export function getLessonDescription(lesson: LessonPlan): string | undefined {
+  const description = lesson.summary ?? lesson.introduction[0]
+
+  return description?.replace(/[*`_]/g, '')
+}

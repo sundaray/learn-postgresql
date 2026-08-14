@@ -10,16 +10,18 @@ import type { WorkspaceLayoutProps } from './workspace-layout.types'
 
 export function ResizableWorkspaceLayout({
   activeStepId,
-  database,
+  failure,
   lesson,
-  checks,
-  isExecutionAvailable,
   isRunning,
   onRunSql,
   run,
+  runBlockedReason,
+  onLoadSnippet,
   onLoadStep,
   onSqlChange,
+  schema,
   sql,
+  status,
 }: WorkspaceLayoutProps) {
   return (
     <ResizablePanelGroup orientation="horizontal" className="bg-background">
@@ -33,13 +35,11 @@ export function ResizableWorkspaceLayout({
           lesson={lesson}
           activeStepId={activeStepId}
           onLoadStep={onLoadStep}
-          checks={checks}
-          hasRun={run !== null}
+          onLoadSnippet={onLoadSnippet}
         />
       </ResizablePanel>
 
       <ResizableHandle
-        withHandle
         aria-label="Resize lesson and query editor panels"
         className="hover:bg-primary/50 focus-visible:bg-primary/50"
       />
@@ -51,17 +51,18 @@ export function ResizableWorkspaceLayout({
         maxSize="56%"
       >
         <SqlEditorPanel
-          database={database}
+          schema={schema}
+          status={status}
+          failure={failure}
+          runBlockedReason={runBlockedReason}
           sql={sql}
           onSqlChange={onSqlChange}
           onRunSql={onRunSql}
-          isExecutionAvailable={isExecutionAvailable}
           isRunning={isRunning}
         />
       </ResizablePanel>
 
       <ResizableHandle
-        withHandle
         aria-label="Resize query editor and results panels"
         className="hover:bg-primary/50 focus-visible:bg-primary/50"
       />

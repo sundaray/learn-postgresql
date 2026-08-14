@@ -7,8 +7,8 @@ import type { LessonPlan, LessonStepPlan } from '@/features/lessons'
 import { LessonNavigation } from './components/lesson-navigation'
 import { WorkspaceHeader } from './components/workspace-header'
 import { practiceWorkspaceConfig } from './data/workspace-config'
-import { evaluateCompletion } from './db/completion'
 import { useLessonSetup } from './db/use-lesson-setup'
+import type { LessonSetupStatus } from './db/use-lesson-setup'
 import { usePracticeDatabase } from './db/use-practice-database'
 import type { PracticeDatabaseStatus } from './db/use-practice-database'
 import { useQueryRunner } from './db/use-query-runner'
@@ -17,7 +17,11 @@ import { ResizableWorkspaceLayout } from './layouts/resizable-workspace-layout'
 import { TabbedWorkspaceLayout } from './layouts/tabbed-workspace-layout'
 import type { WorkspaceLayoutProps } from './layouts/workspace-layout.types'
 import { isWorkspaceView } from './model/practice-workspace.types'
-import type { WorkspaceView } from './model/practice-workspace.types'
+import type {
+  WorkspaceFailure,
+  WorkspaceStatus,
+  WorkspaceView,
+} from './model/practice-workspace.types'
 
 function getInitialStep(lesson: LessonPlan): LessonStepPlan | null {
   const steps = lesson.steps ?? []
@@ -32,39 +36,83 @@ function getScratchDraftKey(lesson: LessonPlan) {
   return `${lesson.id}:scratch`
 }
 
-const databaseStatusLabels = {
-  starting: 'starting',
-  ready: 'ready',
-  error: 'unavailable',
-} as const satisfies Record<PracticeDatabaseStatus, string>
+function readWorkspaceStatus(
+  databaseStatus: PracticeDatabaseStatus,
+  setupStatus: LessonSetupStatus,
+): WorkspaceStatus {
+  if (databaseStatus === 'error') {
+    return { tone: 'failed', label: 'Playground unavailable' }
+  }
 
-function getFirstLesson(): LessonPlan {
-  const lesson = postgresqlCourse.lessons[0]
+  if (databaseStatus === 'starting') {
+    return { tone: 'pending', label: 'Starting the database…' }
+  }
 
-  if (!lesson) {
+  if (setupStatus === 'error') {
+    return { tone: 'failed', label: "Lesson couldn't be prepared" }
+  }
+
+  if (setupStatus !== 'applied') {
+    return { tone: 'pending', label: 'Preparing lesson…' }
+  }
+
+  return { tone: 'ready', label: 'Playground ready' }
+}
+
+/** Names the one condition holding Run back, so the tooltip can be specific. */
+function readRunBlockedReason(
+  databaseStatus: PracticeDatabaseStatus,
+  setupStatus: LessonSetupStatus,
+  sql: string,
+): string | null {
+  if (databaseStatus === 'error') return 'The database is unavailable'
+  if (databaseStatus === 'starting') return 'Waiting for the database to start'
+  if (setupStatus === 'error') return 'Lesson data is not ready'
+  if (setupStatus !== 'applied') return 'Preparing the lesson data'
+  if (!sql.trim()) return 'Type some SQL to run'
+
+  return null
+}
+
+/** Falls back to the first lesson so an unknown slug still renders a workspace. */
+function findLessonBySlugOrFirst(lessonSlug: string): LessonPlan {
+  const matchedLesson = postgresqlCourse.lessons.find(
+    (candidate) => candidate.slug === lessonSlug,
+  )
+
+  if (matchedLesson) {
+    return matchedLesson
+  }
+
+  const firstLesson = postgresqlCourse.lessons[0]
+
+  if (!firstLesson) {
     throw new Error('The PostgreSQL course must contain at least one lesson.')
   }
 
-  return lesson
+  return firstLesson
 }
 
-const firstLesson = getFirstLesson()
-const firstStep = getInitialStep(firstLesson)
+type PracticeWorkspaceProps = {
+  lessonSlug: string
+  onOpenLesson: (lessonSlug: string) => void
+}
 
-export function PracticeWorkspace() {
-  const { appName, database } = practiceWorkspaceConfig
+export function PracticeWorkspace({
+  lessonSlug,
+  onOpenLesson,
+}: PracticeWorkspaceProps) {
+  const { appName, schema } = practiceWorkspaceConfig
   const lessons = postgresqlCourse.lessons
+  const lesson = findLessonBySlugOrFirst(lessonSlug)
+  const lessonIndex = lessons.indexOf(lesson)
   const layout = useWorkspaceLayout()
   const [activeView, setActiveView] = useState<WorkspaceView>('lesson')
-  const [lessonIndex, setLessonIndex] = useState(0)
+  const [openedLessonSlug, setOpenedLessonSlug] = useState(lesson.slug)
   const [activeStepId, setActiveStepId] = useState<string | null>(
-    firstStep?.id ?? null,
+    () => getInitialStep(lesson)?.id ?? null,
   )
-  const [sqlDrafts, setSqlDrafts] = useState<Record<string, string>>(() =>
-    firstStep
-      ? { [getStepDraftKey(firstLesson, firstStep)]: firstStep.sql ?? '' }
-      : {},
-  )
+  const [sqlDrafts, setSqlDrafts] = useState<Record<string, string>>({})
   const practiceDatabase = usePracticeDatabase()
   const {
     clear: clearLastRun,
@@ -73,11 +121,21 @@ export function PracticeWorkspace() {
     status: runnerStatus,
   } = useQueryRunner(practiceDatabase.database)
 
-  const lesson = lessons[lessonIndex] ?? firstLesson
+  // The URL now decides which lesson is open, so a slug change has to drop
+  // what belonged to the previous lesson before this render paints. Drafts
+  // survive, since their keys carry the lesson they were typed against.
+  if (openedLessonSlug !== lesson.slug) {
+    setOpenedLessonSlug(lesson.slug)
+    setActiveStepId(getInitialStep(lesson)?.id ?? null)
+    setActiveView('lesson')
+    clearLastRun()
+  }
+
   const lessonSteps = lesson.steps ?? []
+  // A null active step means the editor is on the lesson's scratch draft, which
+  // is where a snippet loaded straight from the lesson text goes.
   const activeStep =
-    lessonSteps.find((step) => step.id === activeStepId) ??
-    getInitialStep(lesson)
+    lessonSteps.find((step) => step.id === activeStepId) ?? null
   const lessonSetup = useLessonSetup(
     practiceDatabase.database,
     lesson.databaseState?.setupSql ?? '',
@@ -105,6 +163,19 @@ export function PracticeWorkspace() {
     setActiveView('code')
   }
 
+  /** Puts a snippet from the lesson text into the editor so it can be run as is. */
+  function loadSnippet(snippetSql: string) {
+    const scratchDraftKey = getScratchDraftKey(lesson)
+
+    setActiveStepId(null)
+    clearLastRun()
+    setSqlDrafts((currentDrafts) => ({
+      ...currentDrafts,
+      [scratchDraftKey]: snippetSql,
+    }))
+    setActiveView('code')
+  }
+
   function updateSql(nextSql: string) {
     setSqlDrafts((currentDrafts) => {
       if (currentDrafts[activeStepDraftKey] === nextSql) {
@@ -125,70 +196,42 @@ export function PracticeWorkspace() {
       return
     }
 
-    const nextStep = getInitialStep(nextLesson)
+    onOpenLesson(nextLesson.slug)
+  }
 
-    setLessonIndex(nextLessonIndex)
-    setActiveStepId(nextStep?.id ?? null)
-    clearLastRun()
-    setSqlDrafts((currentDrafts) => {
-      if (!nextStep) {
-        return currentDrafts
-      }
-
-      const nextStepDraftKey = getStepDraftKey(nextLesson, nextStep)
-
-      if (Object.hasOwn(currentDrafts, nextStepDraftKey)) {
-        return currentDrafts
-      }
-
+  const failure = useMemo((): WorkspaceFailure | null => {
+    if (practiceDatabase.error) {
       return {
-        ...currentDrafts,
-        [nextStepDraftKey]: nextStep.sql ?? '',
+        title: 'The practice database could not start',
+        actionLabel: 'Reload',
+        onAction: () => window.location.reload(),
       }
-    })
-    setActiveView('lesson')
-  }
+    }
 
-  function resetLesson() {
-    const initialStep = getInitialStep(lesson)
-
-    setSqlDrafts((currentDrafts) => {
-      const nextDrafts = { ...currentDrafts }
-
-      for (const step of lessonSteps) {
-        delete nextDrafts[getStepDraftKey(lesson, step)]
+    if (lessonSetup.error) {
+      return {
+        title: "This lesson couldn't be loaded",
+        actionLabel: 'Try again',
+        onAction: lessonSetup.reapply,
       }
-      delete nextDrafts[getScratchDraftKey(lesson)]
+    }
 
-      return nextDrafts
-    })
-    setActiveStepId(initialStep?.id ?? null)
-    clearLastRun()
-    lessonSetup.reapply()
-    setActiveView('lesson')
-  }
-
-  const checks = useMemo(
-    () =>
-      activeStep ? evaluateCompletion(activeStep.completion, lastRun) : [],
-    [activeStep, lastRun],
-  )
-
-  const liveDatabase = useMemo(
-    () => ({ ...database, status: databaseStatusLabels[practiceDatabase.status] }),
-    [database, practiceDatabase.status],
-  )
+    return null
+  }, [lessonSetup.error, lessonSetup.reapply, practiceDatabase.error])
 
   const sharedLayoutProps = {
     activeStepId: activeStep?.id ?? null,
-    checks,
-    database: liveDatabase,
-    isExecutionAvailable:
-      practiceDatabase.status === 'ready' &&
-      lessonSetup.status === 'applied' &&
-      sql.trim().length > 0,
+    failure,
+    runBlockedReason: readRunBlockedReason(
+      practiceDatabase.status,
+      lessonSetup.status,
+      sql,
+    ),
+    schema,
+    status: readWorkspaceStatus(practiceDatabase.status, lessonSetup.status),
     isRunning: runnerStatus === 'running',
     lesson,
+    onLoadSnippet: loadSnippet,
     onLoadStep: loadStep,
     onRunSql: () => {
       void runSql(sql)
@@ -211,9 +254,9 @@ export function PracticeWorkspace() {
       <WorkspaceHeader
         appName={appName}
         currentLesson={lessonIndex + 1}
+        database={practiceDatabase.database}
         lessons={lessons}
         onOpenLesson={openLesson}
-        onResetLesson={resetLesson}
       />
 
       <main

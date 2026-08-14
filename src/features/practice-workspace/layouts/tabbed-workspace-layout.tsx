@@ -6,16 +6,18 @@ import type { WorkspaceLayoutProps } from './workspace-layout.types'
 
 export function TabbedWorkspaceLayout({
   activeStepId,
-  database,
+  failure,
   lesson,
-  checks,
-  isExecutionAvailable,
   isRunning,
   onRunSql,
   run,
+  runBlockedReason,
+  onLoadSnippet,
   onLoadStep,
   onSqlChange,
+  schema,
   sql,
+  status,
 }: WorkspaceLayoutProps) {
   return (
     <div className="h-full min-h-0 bg-background">
@@ -24,18 +26,19 @@ export function TabbedWorkspaceLayout({
           lesson={lesson}
           activeStepId={activeStepId}
           onLoadStep={onLoadStep}
-          checks={checks}
-          hasRun={run !== null}
+          onLoadSnippet={onLoadSnippet}
         />
       </TabsContent>
 
       <TabsContent value="code" keepMounted className="h-full min-h-0">
         <SqlEditorPanel
-          database={database}
+          schema={schema}
+          status={status}
+          failure={failure}
+          runBlockedReason={runBlockedReason}
           sql={sql}
           onSqlChange={onSqlChange}
           onRunSql={onRunSql}
-          isExecutionAvailable={isExecutionAvailable}
           isRunning={isRunning}
         />
       </TabsContent>

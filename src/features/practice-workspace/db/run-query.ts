@@ -1,16 +1,9 @@
-import type { PGliteInterface } from '@electric-sql/pglite'
+import type { PGliteInterface, Results } from '@electric-sql/pglite'
 import { Result } from 'better-result'
 
 import type { LessonStatement } from '@/features/lessons'
 
-import {
-  ExplainUnavailable,
-  IndexNamesUnavailable,
-  StatementFailed,
-  describeCause,
-} from './errors'
-import { parseExplainResult } from './explain'
-import type { ExplainResult } from './explain'
+import { StatementFailed, describeCause } from './errors'
 
 export type StatementLabel = LessonStatement | 'OTHER'
 
@@ -25,53 +18,9 @@ export type QueryRun = {
   rows: Record<string, unknown>[]
   fieldNames: string[]
   affectedRows: number | null
-  explain: ExplainResult | null
-  indexNames: string[]
+  explainOutput: string | null
   durationMs: number
   error: QueryRunError | null
-}
-
-const explainOptions = 'ANALYZE, BUFFERS, FORMAT JSON'
-
-/**
- * Lessons teach the EXPLAIN form people actually type, without FORMAT JSON.
- * The panel and the completion rules need structured output, so the option is
- * added here instead of in the SQL the learner reads.
- */
-export function ensureJsonExplain(statement: string): string {
-  const explainMatch = /^EXPLAIN\s*/i.exec(statement)
-
-  if (!explainMatch) {
-    return statement
-  }
-
-  const rest = statement.slice(explainMatch[0].length)
-
-  if (rest.startsWith('(')) {
-    const closingIndex = rest.indexOf(')')
-
-    if (closingIndex === -1) {
-      return statement
-    }
-
-    const options = rest
-      .slice(1, closingIndex)
-      .split(',')
-      .map((option) => option.trim())
-      .filter((option) => option.length > 0 && !/^FORMAT\b/i.test(option))
-
-    return `EXPLAIN (${[...options, 'FORMAT JSON'].join(', ')})${rest.slice(closingIndex + 1)}`
-  }
-
-  // Legacy keyword form: EXPLAIN ANALYZE VERBOSE SELECT ...
-  const legacyMatch = /^((?:ANALYZE|VERBOSE)\s+)*/i.exec(rest)
-  const consumed = legacyMatch?.[0] ?? ''
-  const keywords = consumed
-    .split(/\s+/)
-    .map((keyword) => keyword.toUpperCase())
-    .filter((keyword) => keyword.length > 0)
-
-  return `EXPLAIN (${[...keywords, 'FORMAT JSON'].join(', ')}) ${rest.slice(consumed.length)}`
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -153,77 +102,126 @@ function readErrorPosition(error: unknown): number | null {
   return null
 }
 
-function readIndexNames(
-  database: PGliteInterface,
-): Promise<Result<string[], IndexNamesUnavailable>> {
-  return Result.tryPromise({
-    try: async () => {
-      const result = await database.query(
-        "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' ORDER BY indexname",
-      )
-      const rows: unknown[] = result.rows
+const explainFormats = ['TEXT', 'JSON', 'XML', 'YAML'] as const
 
-      return rows.flatMap((row) =>
-        isRecord(row) && typeof row.indexname === 'string' ? [row.indexname] : [],
-      )
-    },
-    catch: (cause) =>
-      new IndexNamesUnavailable({
-        cause,
-        message: `Could not read the index list: ${describeCause(cause)}`,
-      }),
-  })
+type ExplainFormat = (typeof explainFormats)[number]
+
+function isExplainFormat(value: string | undefined): value is ExplainFormat {
+  return (
+    value !== undefined &&
+    explainFormats.some((format) => format === value)
+  )
 }
 
-/**
- * A bare SELECT produces rows but no plan. Re-running it under EXPLAIN is safe
- * because the statement is read-only, and it gives lessons the plan evidence
- * they check against.
- */
-function explainSelect(
-  database: PGliteInterface,
-  statementText: string,
-): Promise<Result<ExplainResult | null, ExplainUnavailable>> {
-  return Result.tryPromise({
-    try: async () => {
-      const explained = await database.query(
-        `EXPLAIN (${explainOptions}) ${statementText}`,
-      )
-      const explainedRows: unknown[] = explained.rows
-
-      return parseExplainResult(explainedRows)
-    },
-    catch: (cause) =>
-      new ExplainUnavailable({
-        cause,
-        message: `Could not produce a plan for this SELECT: ${describeCause(cause)}`,
-      }),
-  })
+function assertNever(value: never): never {
+  throw new Error(`Unhandled EXPLAIN format: ${String(value)}`)
 }
 
-/**
- * Only rewrite when an EXPLAIN actually needs it, so ordinary statements reach
- * PostgreSQL byte for byte and error positions stay meaningful.
- */
-function buildExecutableSql(
-  statementTexts: string[],
-  statements: StatementLabel[],
-  sql: string,
+function readExplainFormat(statement: string): ExplainFormat {
+  const explain = /^\s*EXPLAIN\b/i.exec(statement)
+
+  if (!explain) return 'TEXT'
+
+  const remainder = statement.slice(explain[0].length).trimStart()
+
+  // FORMAT is only accepted inside the parenthesized EXPLAIN options. Text is
+  // the default for a bare EXPLAIN and for the legacy ANALYZE/VERBOSE syntax.
+  if (!remainder.startsWith('(')) return 'TEXT'
+
+  const closingIndex = remainder.indexOf(')')
+  if (closingIndex === -1) return 'TEXT'
+
+  const format = /\bFORMAT\s*(?:=\s*)?(TEXT|JSON|XML|YAML)\b/i
+    .exec(remainder.slice(1, closingIndex))?.[1]
+    ?.toUpperCase()
+
+  if (!isExplainFormat(format)) return 'TEXT'
+
+  switch (format) {
+    case 'TEXT':
+      return 'TEXT'
+    case 'JSON':
+      return 'JSON'
+    case 'XML':
+      return 'XML'
+    case 'YAML':
+      return 'YAML'
+    default:
+      return assertNever(format)
+  }
+}
+
+function readExplainValue(row: unknown): string {
+  const value = isRecord(row) ? Object.values(row)[0] : row
+
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+
+  return JSON.stringify(value, null, 2)
+}
+
+/** JSON, XML and YAML remain raw documents rather than psql-style tables. */
+function readStructuredExplain(rows: unknown[]): string {
+  return rows.map(readExplainValue).join('\n')
+}
+
+function center(value: string, width: number): string {
+  const available = Math.max(0, width - value.length)
+  const left = Math.floor(available / 2)
+  const right = available - left
+
+  return `${' '.repeat(left)}${value}${' '.repeat(right)}`
+}
+
+/** Reproduces psql's aligned, single-column display for text EXPLAIN output. */
+function formatPsqlTextExplain(
+  result: Results<Record<string, unknown>>,
 ): string {
-  const needsJsonExplain = statementTexts.some(
-    (statement, index) =>
-      statements[index] === 'EXPLAIN' && !/FORMAT\s+JSON/i.test(statement),
+  const heading = result.fields[0]?.name ?? 'QUERY PLAN'
+  const lines = result.rows.map(readExplainValue)
+  const columnWidth = Math.max(
+    heading.length,
+    ...lines.map((line) => line.length),
+  )
+  const rowLabel = lines.length === 1 ? 'row' : 'rows'
+
+  return [
+    ` ${center(heading, columnWidth)} `,
+    '-'.repeat(columnWidth + 2),
+    ...lines.map((line) => ` ${line}`),
+    `(${lines.length} ${rowLabel})`,
+  ].join('\n')
+}
+
+function readExplainOutput(
+  results: readonly Results<Record<string, unknown>>[],
+  statementTexts: readonly string[],
+  statements: readonly StatementLabel[],
+): string | null {
+  const blocks = results.flatMap((result, index) =>
+    statements[index] === 'EXPLAIN' && result.rows.length > 0
+      ? [
+          readExplainFormat(statementTexts[index] ?? '') === 'TEXT'
+            ? formatPsqlTextExplain(result)
+            : readStructuredExplain(result.rows),
+        ]
+      : [],
   )
 
-  if (!needsJsonExplain) {
-    return sql
-  }
+  return blocks.length > 0 ? blocks.join('\n\n') : null
+}
 
-  return `${statementTexts
-    .map((statement, index) =>
-      statements[index] === 'EXPLAIN' ? ensureJsonExplain(statement) : statement,
-    )
-    .join(';\n')};`
+/** EXPLAIN has a dedicated text/document renderer, so it skips the row table. */
+function findRowResult(
+  results: readonly Results<Record<string, unknown>>[],
+  statements: readonly StatementLabel[],
+) {
+  return [...results.entries()]
+    .reverse()
+    .find(
+      ([index, result]) =>
+        statements[index] !== 'EXPLAIN' && result.rows.length > 0,
+    )?.[1]
 }
 
 export async function runQuery(
@@ -234,18 +232,19 @@ export async function runQuery(
   const statements = statementTexts.map(labelStatement)
   const startedAt = performance.now()
 
-  const emptyRun: Omit<QueryRun, 'error' | 'durationMs' | 'indexNames'> = {
+  const emptyRun: Omit<QueryRun, 'error' | 'durationMs'> = {
     sql,
     statements,
     rows: [],
     fieldNames: [],
     affectedRows: null,
-    explain: null,
+    explainOutput: null,
   }
 
+  // The statement reaches PostgreSQL byte for byte, so EXPLAIN keeps whatever
+  // options the learner typed and error positions stay meaningful.
   const execResult = await Result.tryPromise({
-    try: () =>
-      database.exec(buildExecutableSql(statementTexts, statements, sql)),
+    try: () => database.exec(sql),
     catch: (cause) =>
       new StatementFailed({
         cause,
@@ -257,9 +256,6 @@ export async function runQuery(
   if (Result.isError(execResult)) {
     return {
       ...emptyRun,
-      // The index list is advisory, so an unreadable pg_indexes must never
-      // displace the SQL error the learner actually needs to see.
-      indexNames: (await readIndexNames(database)).unwrapOr([]),
       durationMs: performance.now() - startedAt,
       error: {
         message: execResult.error.message,
@@ -269,41 +265,15 @@ export async function runQuery(
   }
 
   const results = execResult.value
-  const lastWithRows = [...results]
-    .reverse()
-    .find((result) => result.rows.length > 0)
-
-  let explain: ExplainResult | null = null
-
-  for (const result of results) {
-    const resultRows: unknown[] = result.rows
-    const parsed = parseExplainResult(resultRows)
-    if (parsed) {
-      explain = parsed
-    }
-  }
-
-  const selectStatement = statementTexts[0]
-
-  if (
-    !explain &&
-    statements.length === 1 &&
-    statements[0] === 'SELECT' &&
-    selectStatement
-  ) {
-    explain = (await explainSelect(database, selectStatement)).unwrapOr(null)
-  }
-
-  const rawRows: unknown[] = lastWithRows?.rows ?? []
-  const rows = rawRows.filter(isRecord)
+  const rowResult = findRowResult(results, statements)
+  const rawRows: unknown[] = rowResult?.rows ?? []
 
   return {
     ...emptyRun,
-    rows,
-    fieldNames: lastWithRows?.fields.map((field) => field.name) ?? [],
-    affectedRows: lastWithRows?.affectedRows ?? null,
-    explain,
-    indexNames: (await readIndexNames(database)).unwrapOr([]),
+    rows: rawRows.filter(isRecord),
+    fieldNames: rowResult?.fields.map((field) => field.name) ?? [],
+    affectedRows: rowResult?.affectedRows ?? null,
+    explainOutput: readExplainOutput(results, statementTexts, statements),
     durationMs: performance.now() - startedAt,
     error: null,
   }

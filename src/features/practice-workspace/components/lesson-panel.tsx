@@ -1,27 +1,33 @@
+import { Link } from '@tanstack/react-router'
 import {
-  BookOpenIcon,
-  CircleCheckIcon,
-  CircleDashedIcon,
   CheckCircle2Icon,
-  ClipboardIcon,
   Code2Icon,
+  InfoIcon,
   LightbulbIcon,
   MessageCircleQuestionIcon,
   TargetIcon,
   TriangleAlertIcon,
 } from 'lucide-react'
 
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type {
+  LessonContentBlock,
   LessonFormat,
   LessonPlan,
   LessonStepPlan,
 } from '@/features/lessons'
 import { cn } from '@/lib/utils'
 
-import { describeCompletionRule } from '../db/completion'
-import type { CompletionCheck } from '../db/completion'
+import { practiceWorkspaceConfig } from '../data/workspace-config'
 
 import { LessonCodeBlock } from './lesson-code-block'
 import { LessonDiagram } from './lesson-diagram'
@@ -33,32 +39,169 @@ const lessonFormatLabels: Record<LessonFormat, string> = {
   challenge: 'Challenge',
 }
 
+// The same blue the home page puts on "PostgreSQL".
+const breadcrumbLinkClassName =
+  'text-navy-600 underline-offset-4 hover:text-navy-600 hover:underline'
+
+/** The tilted slash the other apps use between breadcrumb crumbs. */
+function BreadcrumbSlashIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M19 5 5 19" transform="rotate(-10 12 12)" />
+    </svg>
+  )
+}
+
 type LessonPanelProps = {
   lesson: LessonPlan
   activeStepId: string | null
   onLoadStep: (step: LessonStepPlan) => void
-  checks: readonly CompletionCheck[]
-  hasRun: boolean
+  onLoadSnippet: (sql: string) => void
+}
+
+type LessonContentBlocksProps = {
+  blocks: LessonContentBlock[]
+  codeNamePrefix: string
+  onLoadSnippet: (sql: string) => void
+}
+
+function LessonContentBlocks({
+  blocks,
+  codeNamePrefix,
+  onLoadSnippet,
+}: LessonContentBlocksProps) {
+  return (
+    <div className="flex flex-col gap-4 text-base leading-7">
+      {blocks.map((block, blockIndex) => {
+        if (block.type === 'paragraph') {
+          return (
+            <p key={`paragraph-${blockIndex}`}>
+              <LessonRichText text={block.text} />
+            </p>
+          )
+        }
+
+        if (block.type === 'note') {
+          return (
+            <aside
+              key={`note-${blockIndex}`}
+              className="flex gap-3 rounded-lg border border-navy-600/25 bg-navy-600/8 px-4 py-3"
+            >
+              <InfoIcon className="mt-1 size-4 shrink-0 text-navy-600" />
+              <p>
+                <span className="font-semibold text-navy-600">Note:</span>{' '}
+                <LessonRichText text={block.text} />
+              </p>
+            </aside>
+          )
+        }
+
+        if (
+          block.type === 'unordered-list' ||
+          block.type === 'ordered-list'
+        ) {
+          const List = block.type === 'ordered-list' ? 'ol' : 'ul'
+
+          return (
+            <List
+              key={`${block.type}-${blockIndex}`}
+              className={cn(
+                'flex flex-col gap-3 pl-6 marker:font-medium marker:text-foreground',
+                block.type === 'ordered-list' ? 'list-decimal' : 'list-disc',
+              )}
+            >
+              {block.items.map((item, itemIndex) => (
+                <li key={itemIndex} className="pl-1">
+                  <div className="flex flex-col gap-3">
+                    {item.paragraphs.map((paragraph, paragraphIndex) => (
+                      <p key={paragraphIndex}>
+                        <LessonRichText text={paragraph} />
+                      </p>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </List>
+          )
+        }
+
+        // Only SQL snippets can be sent to the editor; the text blocks are
+        // sample output.
+        if (block.language !== 'sql') {
+          return (
+            <LessonCodeBlock
+              key={`code-${blockIndex}`}
+              name={`${codeNamePrefix}-${blockIndex + 1}.txt`}
+              contents={block.contents}
+            />
+          )
+        }
+
+        return (
+          <LessonCodeBlock
+            key={`code-${blockIndex}`}
+            name={`${codeNamePrefix}-${blockIndex + 1}.sql`}
+            contents={block.contents}
+            onLoadInEditor={() => onLoadSnippet(block.contents)}
+          />
+        )
+      })}
+    </div>
+  )
 }
 
 export function LessonPanel({
   activeStepId,
-  checks,
-  hasRun,
   lesson,
+  onLoadSnippet,
   onLoadStep,
 }: LessonPanelProps) {
-  function copySql(sql: string) {
-    if (navigator.clipboard) {
-      void navigator.clipboard.writeText(sql)
-    }
-  }
-
   return (
     <section className="flex h-full min-w-0 flex-col bg-background">
-      <div className="flex shrink-0 items-center gap-2 border-b px-5 py-3 text-sm font-medium">
-        <BookOpenIcon className="size-4 text-muted-foreground" />
-        Learn
+      <div className="flex shrink-0 items-center border-b px-5 py-3">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink
+                className={breadcrumbLinkClassName}
+                render={<Link to="/" />}
+              >
+                Home
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>
+              <BreadcrumbSlashIcon />
+            </BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <BreadcrumbLink
+                className={breadcrumbLinkClassName}
+                render={<Link to="/lessons" />}
+              >
+                Lessons
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>
+              <BreadcrumbSlashIcon />
+            </BreadcrumbSeparator>
+            {/* The chapter groups related lessons; it has no page of its own. */}
+            <BreadcrumbItem>
+              <BreadcrumbPage>{practiceWorkspaceConfig.appName}</BreadcrumbPage>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator>
+              <BreadcrumbSlashIcon />
+            </BreadcrumbSeparator>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
@@ -79,7 +222,7 @@ export function LessonPanel({
               </p>
             )}
             {lesson.summary && (
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+              <p className="max-w-2xl text-base leading-7 text-muted-foreground">
                 {lesson.summary}
               </p>
             )}
@@ -97,18 +240,35 @@ export function LessonPanel({
             )}
           </div>
 
-          {lesson.sections?.map((section) => (
+          {lesson.content && (
+            <LessonContentBlocks
+              blocks={lesson.content}
+              codeNamePrefix={`${lesson.slug}-introduction`}
+              onLoadSnippet={onLoadSnippet}
+            />
+          )}
+
+          {lesson.sections?.map((section, sectionIndex) => (
             <section key={section.title} className="flex flex-col gap-3">
               <h2 className="text-xl leading-tight font-semibold tracking-tight">
                 {section.title}
               </h2>
-              <div className="flex flex-col gap-4 text-base leading-7">
-                {section.paragraphs.map((paragraph) => (
-                  <p key={paragraph}>
-                    <LessonRichText text={paragraph} />
-                  </p>
-                ))}
-              </div>
+              {section.paragraphs && (
+                <div className="flex flex-col gap-4 text-base leading-7">
+                  {section.paragraphs.map((paragraph) => (
+                    <p key={paragraph}>
+                      <LessonRichText text={paragraph} />
+                    </p>
+                  ))}
+                </div>
+              )}
+              {section.content && (
+                <LessonContentBlocks
+                  blocks={section.content}
+                  codeNamePrefix={`${lesson.slug}-section-${sectionIndex + 1}`}
+                  onLoadSnippet={onLoadSnippet}
+                />
+              )}
             </section>
           ))}
 
@@ -119,11 +279,11 @@ export function LessonPanel({
             >
               <div className="flex items-center gap-2">
                 <TargetIcon className="size-4 text-muted-foreground" />
-                <h2 id="objectives-heading" className="text-sm font-semibold">
+                <h2 id="objectives-heading" className="text-base font-semibold">
                   Learning objectives
                 </h2>
               </div>
-              <ul className="flex list-disc flex-col gap-2 pl-5 text-sm leading-6 text-muted-foreground marker:text-foreground">
+              <ul className="flex list-disc flex-col gap-2 pl-5 text-base leading-7 text-muted-foreground marker:text-foreground">
                 {lesson.learningObjectives?.map((objective) => (
                   <li key={objective}>{objective}</li>
                 ))}
@@ -138,7 +298,7 @@ export function LessonPanel({
             >
             <div className="flex items-center gap-2 border-b pb-3">
               <CheckCircle2Icon className="size-4" />
-              <h2 id="exercises-heading" className="text-sm font-semibold">
+              <h2 id="exercises-heading" className="text-base font-semibold">
                 Exercises
               </h2>
             </div>
@@ -174,7 +334,7 @@ export function LessonPanel({
                       </h3>
                     </div>
 
-                    <div className="flex flex-col gap-2 text-sm leading-6 text-muted-foreground">
+                    <div className="flex flex-col gap-2 text-base leading-7 text-muted-foreground">
                       {step.instruction.map((instruction) => (
                         <p key={instruction}>{instruction}</p>
                       ))}
@@ -182,24 +342,10 @@ export function LessonPanel({
 
                     {step.sql && (
                       <div className="flex flex-col gap-2">
-                        <div className="flex justify-end">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Copy SQL for ${step.title}`}
-                            onClick={() => copySql(step.sql ?? '')}
-                          >
-                            <ClipboardIcon />
-                          </Button>
-                        </div>
-
-                        <div className="dark overflow-hidden rounded-lg border bg-background">
-                          <LessonCodeBlock
-                            name={`${lesson.slug}-${step.id}.sql`}
-                            contents={step.sql}
-                          />
-                        </div>
+                        <LessonCodeBlock
+                          name={`${lesson.slug}-${step.id}.sql`}
+                          contents={step.sql}
+                        />
 
                         <Button
                           type="button"
@@ -215,8 +361,10 @@ export function LessonPanel({
 
                     {step.expectedObservations.length > 0 && (
                       <div className="flex flex-col gap-2 border-t pt-3">
-                        <p className="text-xs font-semibold">What to look for</p>
-                        <ul className="flex list-disc flex-col gap-1 pl-5 text-sm leading-6 text-muted-foreground marker:text-foreground">
+                        <p className="text-base font-semibold">
+                          What to look for
+                        </p>
+                        <ul className="flex list-disc flex-col gap-1 pl-5 text-base leading-7 text-muted-foreground marker:text-foreground">
                           {step.expectedObservations.map((observation) => (
                             <li key={observation}>{observation}</li>
                           ))}
@@ -226,11 +374,11 @@ export function LessonPanel({
 
                     {step.explanation.length > 0 && (
                       <div className="flex flex-col gap-2 border-t pt-3">
-                        <p className="text-xs font-semibold">Why it matters</p>
+                        <p className="text-base font-semibold">Why it matters</p>
                         {step.explanation.map((paragraph) => (
                           <p
                             key={paragraph}
-                            className="text-sm leading-6 text-muted-foreground"
+                            className="text-base leading-7 text-muted-foreground"
                           >
                             {paragraph}
                           </p>
@@ -238,58 +386,15 @@ export function LessonPanel({
                       </div>
                     )}
 
-                    {isActive && checks.length > 0 && (
-                      <div className="flex flex-col gap-2 border-t pt-3">
-                        <p className="text-xs font-semibold">
-                          Completion checks
-                        </p>
-                        <ul className="flex flex-col gap-2">
-                          {checks.map((check, index) => {
-                            const OutcomeIcon =
-                              check.outcome === 'met'
-                                ? CircleCheckIcon
-                                : CircleDashedIcon
-
-                            return (
-                              <li
-                                key={`${check.rule.kind}-${index}`}
-                                className="flex gap-2 text-sm leading-6"
-                              >
-                                <OutcomeIcon
-                                  className={cn(
-                                    'mt-1 size-4 shrink-0',
-                                    check.outcome === 'met'
-                                      ? 'text-foreground'
-                                      : 'text-muted-foreground',
-                                  )}
-                                />
-                                <span
-                                  className={
-                                    check.outcome === 'met'
-                                      ? ''
-                                      : 'text-muted-foreground'
-                                  }
-                                >
-                                  {hasRun
-                                    ? check.detail
-                                    : describeCompletionRule(check.rule)}
-                                </span>
-                              </li>
-                            )
-                          })}
-                        </ul>
-                      </div>
-                    )}
-
                     {step.hint && (
-                      <aside className="flex gap-2 border-t pt-3 text-sm leading-6 text-muted-foreground">
+                      <aside className="flex gap-2 border-t pt-3 text-base leading-7 text-muted-foreground">
                         <LightbulbIcon className="mt-1 size-4 shrink-0" />
                         <p>{step.hint}</p>
                       </aside>
                     )}
 
                     {step.caution && (
-                      <aside className="flex gap-2 border-t pt-3 text-sm leading-6 text-muted-foreground">
+                      <aside className="flex gap-2 border-t pt-3 text-base leading-7 text-muted-foreground">
                         <TriangleAlertIcon className="mt-1 size-4 shrink-0" />
                         <p>{step.caution}</p>
                       </aside>
@@ -308,11 +413,11 @@ export function LessonPanel({
             >
             <div className="flex items-center gap-2">
               <LightbulbIcon className="size-4 text-muted-foreground" />
-              <h2 id="takeaways-heading" className="text-sm font-semibold">
+              <h2 id="takeaways-heading" className="text-base font-semibold">
                 Key takeaways
               </h2>
             </div>
-            <ul className="flex list-disc flex-col gap-2 pl-5 text-sm leading-6 text-muted-foreground marker:text-foreground">
+            <ul className="flex list-disc flex-col gap-2 pl-5 text-base leading-7 text-muted-foreground marker:text-foreground">
               {lesson.takeaways?.map((takeaway) => (
                 <li key={takeaway}>{takeaway}</li>
               ))}
@@ -329,7 +434,7 @@ export function LessonPanel({
               <MessageCircleQuestionIcon className="size-4 text-muted-foreground" />
               <h2
                 id="interview-checks-heading"
-                className="text-sm font-semibold"
+                className="text-base font-semibold"
               >
                 Interview checks
               </h2>
@@ -338,10 +443,10 @@ export function LessonPanel({
             <div className="flex flex-col gap-3">
               {lesson.interviewChecks?.map((check) => (
                 <details key={check.question} className="rounded-lg border p-4">
-                  <summary className="cursor-pointer text-sm font-medium">
+                  <summary className="cursor-pointer text-base font-medium">
                     {check.question}
                   </summary>
-                  <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-sm leading-6 text-muted-foreground marker:text-foreground">
+                  <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-base leading-7 text-muted-foreground marker:text-foreground">
                     {check.answerPoints.map((answerPoint) => (
                       <li key={answerPoint}>{answerPoint}</li>
                     ))}

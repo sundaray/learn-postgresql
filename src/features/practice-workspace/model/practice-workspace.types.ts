@@ -14,9 +14,21 @@ export type WorkspaceLayout = 'resizable' | 'tabbed'
 
 export type DatabaseSchema = Record<string, string[]>
 
-export type DatabasePreview = {
-  engine: string
-  name: string
-  status: string
-  schema: DatabaseSchema
+export type WorkspaceStatusTone = 'ready' | 'pending' | 'failed'
+
+/** The one line that reports whether the workspace can run anything. */
+export type WorkspaceStatus = {
+  tone: WorkspaceStatusTone
+  label: string
+}
+
+/**
+ * A failure the learner cannot see in the output panel, with a way out. The
+ * underlying PostgreSQL or worker error is deliberately absent: it names
+ * internals the learner has no way to act on.
+ */
+export type WorkspaceFailure = {
+  title: string
+  actionLabel: string
+  onAction: () => void
 }

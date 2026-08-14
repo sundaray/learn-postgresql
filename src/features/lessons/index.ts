@@ -2,6 +2,7 @@ export { postgresqlCourse } from './content/postgresql'
 export {
   findCourseBySlug,
   findLessonBySlug,
+  getLessonDescription,
   lessonCourses,
 } from './lesson-registry'
 export type {
@@ -9,15 +10,15 @@ export type {
   CoursePlan,
   DatasetTablePlan,
   InterviewCheck,
-  LessonCompletionRule,
+  LessonContentBlock,
   LessonDatabaseState,
   LessonDiagramId,
   LessonFormat,
+  LessonListItem,
   LessonPlan,
   LessonSection,
   LessonStatement,
   LessonStepKind,
   LessonStepPlan,
   NonEmptyReadonlyArray,
-  QueryPlanNode,
 } from './model/lesson-plan.types'

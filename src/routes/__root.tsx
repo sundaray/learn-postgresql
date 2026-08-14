@@ -8,6 +8,10 @@ import {
   createRootRoute,
 } from '@tanstack/react-router'
 import { Agentation } from 'agentation'
+
+import { NavigationProgress } from '@/components/navigation-progress'
+import { TooltipProvider } from '@/components/ui/tooltip'
+
 import appCss from '../styles/app.css?url'
 
 export const Route = createRootRoute({
@@ -18,9 +22,41 @@ export const Route = createRootRoute({
         name: 'viewport',
         content: 'width=device-width, initial-scale=1',
       },
-      { title: 'TanStack Start Starter' },
+      { title: 'Learn PostgreSQL' },
     ],
-    links: [{ rel: 'stylesheet', href: appCss }],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+      // The elephant's head on a tile, rendered from
+      // src/assets/learn-postgresql-icon.svg by scripts/generate-favicons.mjs.
+      // Modern browsers prefer the SVG; the PNG/ICO fallbacks below are for
+      // Safari, bookmarks, and the auto-requested /favicon.ico.
+      {
+        rel: 'icon',
+        href: '/favicon.svg',
+        type: 'image/svg+xml',
+      },
+      {
+        rel: 'icon',
+        href: '/favicon-32.png',
+        type: 'image/png',
+        sizes: '32x32',
+      },
+      {
+        rel: 'icon',
+        href: '/favicon-16.png',
+        type: 'image/png',
+        sizes: '16x16',
+      },
+      {
+        rel: 'apple-touch-icon',
+        href: '/apple-touch-icon.png',
+        sizes: '180x180',
+      },
+      {
+        rel: 'manifest',
+        href: '/site.webmanifest',
+      },
+    ],
   }),
   component: RootComponent,
 })
@@ -40,7 +76,8 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <NavigationProgress />
+        <TooltipProvider>{children}</TooltipProvider>
         {import.meta.env.DEV && <Agentation endpoint="http://localhost:4747" />}
         <Scripts />
       </body>
