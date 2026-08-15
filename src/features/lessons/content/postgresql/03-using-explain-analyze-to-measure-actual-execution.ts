@@ -6,35 +6,9 @@ export const usingExplainAnalyzeToMeasureActualExecutionLesson = {
   order: 3,
   title: 'Using EXPLAIN ANALYZE to Measure Actual Execution',
   introduction: [
-    "In the previous chapter, you learned that `EXPLAIN` displays the execution plan selected by PostgreSQL's planner, together with estimates such as cost and row count. However, `EXPLAIN` doesn't execute the SQL statement, so it can't tell you what actually happened during execution.",
-    'To execute the statement and compare the planner\'s estimates with the actual results, you can use `EXPLAIN ANALYZE`.',
-    'When the `ANALYZE` option is enabled, PostgreSQL creates the execution plan and then executes it while collecting statistics about what actually happened.',
-  ],
-  content: [
-    {
-      type: 'paragraph',
-      text: 'The output includes:',
-    },
-    {
-      type: 'unordered-list',
-      items: [
-        { paragraphs: ["The planner's original estimates"] },
-        { paragraphs: ['The actual execution time for each plan node'] },
-        {
-          paragraphs: ['The actual number of rows produced by each node'],
-        },
-        { paragraphs: ['The number of times each node was executed'] },
-        { paragraphs: ['The total planning and execution times'] },
-      ],
-    },
-    {
-      type: 'paragraph',
-      text: "This makes `EXPLAIN ANALYZE` one of the most useful tools for understanding whether PostgreSQL's estimates match what really happens during execution.",
-    },
-    {
-      type: 'note',
-      text: 'The `ANALYZE` option used with `EXPLAIN` is different from the standalone `ANALYZE` statement. The standalone `ANALYZE` statement collects statistics about table data for the planner. `EXPLAIN ANALYZE` executes a SQL statement and measures what happens.',
-    },
+    "In the previous chapter, you learned how to use `EXPLAIN` to inspect the execution plan selected by the planner. You also learned that `EXPLAIN` **doesn't** execute the SQL statement. As a result, values such as `cost`, `rows`, and `width` are estimates made by the planner.",
+    'But what if you want to compare those estimates with what actually happens when PostgreSQL executes the statement?',
+    'For that, you can use `EXPLAIN ANALYZE`.',
   ],
   sections: [
     {
@@ -120,11 +94,7 @@ FROM products;`,
       content: [
         {
           type: 'paragraph',
-          text: "The two numbers represent the node's actual startup time and actual total time.",
-        },
-        {
-          type: 'paragraph',
-          text: "Unlike PostgreSQL's estimated costs, actual times are measured in milliseconds.",
+          text: "The two numbers show how long the node took to start producing rows and how long it took to finish. Unlike PostgreSQL's estimated costs, actual times are measured in milliseconds.",
         },
         {
           type: 'paragraph',
@@ -135,27 +105,19 @@ FROM products;`,
           items: [
             {
               paragraphs: [
-                '`0.019` milliseconds is the time from when the node started until it began producing rows.',
+                '`0.019` milliseconds is how long the node took to produce its first row.',
               ],
             },
             {
               paragraphs: [
-                '`0.910` milliseconds is the time from when the node started until it finished producing all its rows.',
+                '`0.910` milliseconds is how long the node took to finish producing all its rows.',
               ],
             },
           ],
         },
         {
           type: 'paragraph',
-          text: "These numbers should not be added together. The second value already measures the elapsed time from the beginning of the node's execution until its completion.",
-        },
-        {
-          type: 'paragraph',
-          text: 'Therefore, this node completed its work in approximately `0.910` milliseconds, not `0.929` milliseconds.',
-        },
-        {
-          type: 'paragraph',
-          text: 'These values are averages per execution of the node. This becomes important when `loops` is greater than `1`.',
+          text: 'The second number already includes the first. So, the `Seq Scan` node took approximately `0.910` milliseconds to complete, not `0.929` milliseconds.',
         },
       ],
     },
@@ -182,11 +144,19 @@ FROM products;`,
         },
         {
           type: 'paragraph',
-          text: 'The first value is the number of rows the planner estimated the node would produce. The second is the average number of rows the node actually produced during each execution.',
+          text: '`5000` is the number of rows the planner estimated this node would produce.',
         },
         {
           type: 'paragraph',
-          text: 'Because `loops=1` in this example, the node actually produced 5,000 rows.',
+          text: '`5000.00` is the average number of rows the node actually produced each time it was executed.',
+        },
+        {
+          type: 'paragraph',
+          text: 'You may notice that the actual row count is displayed as `5000.00` rather than `5000`. PostgreSQL reports this value as an average per execution of the node, so it can contain decimal places.',
+        },
+        {
+          type: 'paragraph',
+          text: 'In this example, `loops=1`, so the node was executed only once and actually produced 5,000 rows.',
         },
         {
           type: 'paragraph',
@@ -230,11 +200,7 @@ Actual rows:    5000`,
         },
         {
           type: 'paragraph',
-          text: 'Some nodes can be executed multiple times. For example, a child node inside a nested-loop join may be executed once for every row produced by another node.',
-        },
-        {
-          type: 'paragraph',
-          text: 'When `loops` is greater than `1`, the reported actual time and row count are averages for one execution of the node.',
+          text: 'Some plan nodes can be executed multiple times. When that happens, the actual `time` and `rows` values shown for the node are averages for one execution of that node.',
         },
         {
           type: 'paragraph',
@@ -247,25 +213,7 @@ Actual rows:    5000`,
         },
         {
           type: 'paragraph',
-          text: 'This means that the node produced an average of two rows during each execution. Across ten executions, it produced approximately 20 rows:',
-        },
-        {
-          type: 'code',
-          language: 'text',
-          contents: '2 × 10 = 20',
-        },
-        {
-          type: 'paragraph',
-          text: 'Its accumulated execution time would be approximately:',
-        },
-        {
-          type: 'code',
-          language: 'text',
-          contents: '0.050 × 10 = 0.500 milliseconds',
-        },
-        {
-          type: 'paragraph',
-          text: "Don't add the execution times of every node in a plan. A parent node's time generally includes work performed by its child nodes, so adding them could count the same work more than once.",
+          text: 'This means the node was executed 10 times, and each execution produced an average of 2 rows.',
         },
       ],
     },
@@ -283,15 +231,15 @@ Actual rows:    5000`,
         },
         {
           type: 'paragraph',
-          text: 'PostgreSQL stores frequently accessed database pages in a shared memory area called **shared buffers**.',
+          text: 'PostgreSQL stores table and index data in units called **blocks**. When PostgreSQL accesses this data, the required blocks are held in an area of memory called **shared buffers**.',
         },
         {
           type: 'paragraph',
-          text: '`shared hit=46` means that 46 buffer accesses found the required pages already available in PostgreSQL\'s shared buffers. PostgreSQL did not need to read those pages into shared buffers again.',
+          text: '`shared hit=46` means that 46 block accesses found the required blocks already in shared buffers. PostgreSQL didn\'t need to read those blocks into shared buffers again.',
         },
         {
           type: 'paragraph',
-          text: 'Depending on the state of the cache, you may instead see, or also see, a `read` value:',
+          text: 'You may also see a `read` value:',
         },
         {
           type: 'code',
@@ -300,32 +248,39 @@ Actual rows:    5000`,
         },
         {
           type: 'paragraph',
-          text: 'A `read` means PostgreSQL had to request that those pages be read into shared buffers. It doesn\'t necessarily prove that they came directly from physical storage because the operating system may already have cached them.',
+          text: '`read=26` means that PostgreSQL had to read 26 blocks into shared buffers. This doesn\'t necessarily mean that the blocks were read from physical storage, because the operating system may already have had the data in memory.',
         },
         {
           type: 'paragraph',
-          text: 'You may also see buffer information beneath a `Planning` heading:',
+          text: 'For now, the important distinction is:',
         },
         {
-          type: 'code',
-          language: 'text',
-          contents: `Planning:
-  Buffers: shared hit=33`,
+          type: 'unordered-list',
+          items: [
+            {
+              paragraphs: [
+                "`hit` means the required data was already in PostgreSQL's shared buffers.",
+              ],
+            },
+            {
+              paragraphs: [
+                '`read` means the required data had to be read into shared buffers.',
+              ],
+            },
+          ],
         },
         {
-          type: 'paragraph',
-          text: 'This represents buffer activity that occurred while PostgreSQL was creating the execution plan.',
-        },
-        {
-          type: 'paragraph',
-          text: 'In PostgreSQL 18, buffer reporting is enabled automatically when `ANALYZE` is used. If you intentionally want to hide this information, you can disable it:',
-        },
-        {
-          type: 'code',
-          language: 'sql',
-          contents: `EXPLAIN (ANALYZE, BUFFERS OFF)
+          type: 'note',
+          text: "In PostgreSQL 18, buffer reporting is enabled automatically when `ANALYZE` is used. If you don't want to include buffer information in the output, you can disable it:",
+          content: [
+            {
+              type: 'code',
+              language: 'sql',
+              contents: `EXPLAIN (ANALYZE, BUFFERS OFF)
 SELECT *
 FROM products;`,
+            },
+          ],
         },
       ],
     },
@@ -384,37 +339,11 @@ FROM products;`,
         },
         {
           type: 'paragraph',
-          text: 'Although the `SELECT` statement is executed, `EXPLAIN ANALYZE` discards its result instead of sending the 5,000 product rows to the client.',
+          text: 'Although `EXPLAIN ANALYZE` executes the `SELECT` statement, it discards the result instead of sending the 5,000 product rows to the client.',
         },
         {
           type: 'paragraph',
-          text: 'For this reason, `Execution Time` is not the complete end-to-end time that an application would experience. `EXPLAIN ANALYZE` also adds some measurement overhead of its own.',
-        },
-        {
-          type: 'paragraph',
-          text: "You should therefore not add `Planning Time` and `Execution Time` and describe the result as the statement's complete running time. The reported values don't include every stage or the time required to transfer results to an application.",
-        },
-      ],
-    },
-    {
-      title: 'The Output Row Count',
-      content: [
-        {
-          type: 'paragraph',
-          text: 'The final line says:',
-        },
-        {
-          type: 'code',
-          language: 'text',
-          contents: '(6 rows)',
-        },
-        {
-          type: 'paragraph',
-          text: 'As with plain `EXPLAIN`, this is the number of text rows in the displayed plan. It\'s not the number of products returned by the `SELECT` statement.',
-        },
-        {
-          type: 'paragraph',
-          text: 'The number may differ if optional details, such as planning buffer information, are not displayed.',
+          text: "Therefore, `Execution Time` is not the complete time an application would experience. It measures the time PostgreSQL spent executing the statement, but it doesn't include the time required to send the resulting rows to the client. `EXPLAIN ANALYZE` also adds some measurement overhead of its own.",
         },
       ],
     },
@@ -423,15 +352,15 @@ FROM products;`,
       content: [
         {
           type: 'paragraph',
-          text: 'Unlike plain `EXPLAIN`, `EXPLAIN ANALYZE` executes the SQL statement.',
+          text: 'As I explained earlier, `EXPLAIN ANALYZE` actually executes the SQL statement, unlike plain `EXPLAIN`.',
         },
         {
           type: 'paragraph',
-          text: 'For a `SELECT`, PostgreSQL runs the statement but discards its result. However, data-changing statements such as `INSERT`, `UPDATE`, `DELETE`, and `MERGE` will make their normal changes.',
+          text: 'For a `SELECT` statement, PostgreSQL executes the query but discards the rows instead of returning them to the client. However, statements such as `INSERT`, `UPDATE`, `DELETE`, and `MERGE` will make their normal changes to the database.',
         },
         {
           type: 'paragraph',
-          text: 'For example, the following statement would actually update the product:',
+          text: 'For example, the following statement would actually update the matching row:',
         },
         {
           type: 'code',
@@ -443,7 +372,7 @@ WHERE id = 1;`,
         },
         {
           type: 'paragraph',
-          text: 'When analyzing a data-changing statement without keeping its changes, you can run it inside a transaction and roll the transaction back:',
+          text: 'When you want to analyze a data-changing statement without keeping its changes, you can run it inside a transaction and roll the transaction back:',
         },
         {
           type: 'code',
@@ -459,11 +388,11 @@ ROLLBACK;`,
         },
         {
           type: 'paragraph',
-          text: 'A rollback protects ordinary transactional database changes, but it can\'t undo every possible side effect. For example, sequence increments and actions performed by functions outside the database may persist.',
+          text: '`EXPLAIN ANALYZE` still executes the `UPDATE`, allowing PostgreSQL to collect the actual execution statistics, but `ROLLBACK` undoes the transactional changes afterward.',
         },
         {
-          type: 'paragraph',
-          text: 'For now, the safest approach is to use `EXPLAIN ANALYZE` with `SELECT` statements and perform experiments in a development database.',
+          type: 'note',
+          text: 'Rolling back the transaction will undo the normal database changes made by the statement. However, it is still best to experiment with data-changing statements in a development or test database.',
         },
       ],
     },

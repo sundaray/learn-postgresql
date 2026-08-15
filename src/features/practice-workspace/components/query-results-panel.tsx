@@ -62,7 +62,7 @@ function ConsoleOutput({ text }: { text: string }) {
   return (
     <ScrollArea orientation="horizontal" className="w-full">
       {/* Padding belongs on the text so it survives to the end of a long line. */}
-      <pre className="database-output px-4 py-4 font-mono text-sm leading-6 whitespace-pre">
+      <pre className="px-4 py-4 font-mono text-sm leading-6 whitespace-pre">
         {text}
       </pre>
     </ScrollArea>

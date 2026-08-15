@@ -7,6 +7,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+    /* Tailwind's own container scale stops at 7xl (80rem). This adds the wider
+       step the top bar is capped at, so the menu keeps its normal inset on a
+       laptop and only pulls inward on a very wide monitor. */
+    --container-10xl: 110rem;
     --font-heading: var(--font-sans);
     --font-sans: 'Inter Variable', sans-serif;
     --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
@@ -145,8 +149,11 @@
   }
 }
 
-/* Database clients display the literal ASCII operators returned by PostgreSQL. */
-.database-output {
+/* PostgreSQL prints literal ASCII, so `->` has to stay a dash and a chevron
+   rather than the single arrow glyph JetBrains Mono draws for it. This covers
+   inline code in the prose, lesson code blocks, and the query results panel. */
+code,
+pre {
   font-variant-ligatures: none;
   font-feature-settings: 'liga' 0, 'calt' 0;
 }

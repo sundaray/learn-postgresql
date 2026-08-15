@@ -61,12 +61,18 @@ SELECT * FROM products;`,
         {
           type: 'code',
           language: 'text',
-          contents:
-            'Seq Scan on products  (cost=0.00..96.00 rows=5000 width=39)',
+          contents: `                            QUERY PLAN
+-------------------------------------------------------------------
+ Seq Scan on products  (cost=0.00..96.00 rows=5000 width=39)
+(1 row)`,
         },
         {
           type: 'paragraph',
           text: "Let's understand what this output means.",
+        },
+        {
+          type: 'paragraph',
+          text: '`QUERY PLAN` is the name of the column returned by `EXPLAIN`. The horizontal dashed line beneath it separates the column heading from the rows in the result.',
         },
         {
           type: 'paragraph',
@@ -115,6 +121,10 @@ SELECT * FROM products;`,
         {
           type: 'paragraph',
           text: 'Remember that `cost`, `rows`, and `width` are estimates made by the planner. Because plain `EXPLAIN` doesn\'t execute the SQL statement, it can\'t show the actual number of rows produced or the actual execution time.',
+        },
+        {
+          type: 'paragraph',
+          text: 'Finally, `(1 row)` tells you that the result returned by `EXPLAIN` contains one row. In this example, that row is the line describing the `Seq Scan` node. It does not mean that the original `SELECT` statement would return one row.',
         },
       ],
     },
@@ -239,22 +249,6 @@ ORDER BY price;`,
         {
           type: 'paragraph',
           text: 'A helpful way to start reading an execution plan is to begin with the lower-level nodes and work upward. In the execution plan above, PostgreSQL first reads the rows from the `products` table using the `Seq Scan` node. The `Sort` node then sorts those rows by `price` and produces the final result.',
-        },
-        {
-          type: 'paragraph',
-          text: 'You may notice that the bottom of the output says `(3 rows)`, even though the plan contains only two nodes. This is because `EXPLAIN` produces a one-column result named `QUERY PLAN`, and `psql` counts each line returned in that result as a row. In this example, those three rows are:',
-        },
-        {
-          type: 'ordered-list',
-          items: [
-            { paragraphs: ['The `Sort` node'] },
-            { paragraphs: ['The `Sort Key` detail'] },
-            { paragraphs: ['The `Seq Scan` node'] },
-          ],
-        },
-        {
-          type: 'paragraph',
-          text: 'Therefore, `(3 rows)` doesn\'t represent the number of plan nodes or the number of rows the SQL statement would return. It\'s simply the number of text rows displayed by `EXPLAIN`.',
         },
       ],
     },

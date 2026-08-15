@@ -21,6 +21,14 @@ export function getLessonContentCodeFileName(
   return `${prefix}-${blockIndex + 1}.${language === 'sql' ? 'sql' : 'txt'}`
 }
 
+/** Keeps code inside a note from colliding with the blocks around it. */
+export function getLessonNoteCodeNamePrefix(
+  prefix: string,
+  blockIndex: number,
+) {
+  return `${prefix}-note-${blockIndex + 1}`
+}
+
 export function getLessonStepCodeFileName(
   lessonSlug: string,
   stepId: string,
@@ -34,6 +42,15 @@ function appendContentCodeFiles(
   prefix: string,
 ) {
   blocks?.forEach((block, blockIndex) => {
+    if (block.type === 'note') {
+      appendContentCodeFiles(
+        files,
+        block.content,
+        getLessonNoteCodeNamePrefix(prefix, blockIndex),
+      )
+      return
+    }
+
     if (block.type !== 'code') return
 
     files.push({

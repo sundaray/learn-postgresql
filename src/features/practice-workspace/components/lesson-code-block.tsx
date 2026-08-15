@@ -111,7 +111,7 @@ export function LessonCodeBlock({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="bg-navy-800 text-white hover:bg-navy-800 hover:text-white"
+                  className="bg-navy-800 text-white hover:bg-navy-800 hover:text-white dark:hover:bg-navy-800"
                   aria-label={copied ? 'Code copied' : 'Copy code'}
                   onClick={() => void copyCode()}
                 />

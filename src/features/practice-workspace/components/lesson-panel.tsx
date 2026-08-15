@@ -32,6 +32,7 @@ import { practiceWorkspaceConfig } from '../data/workspace-config'
 import { LessonCodeBlock } from './lesson-code-block'
 import {
   getLessonContentCodeFileName,
+  getLessonNoteCodeNamePrefix,
   getLessonStepCodeFileName,
 } from './lesson-code-files'
 import { LessonDiagram } from './lesson-diagram'
@@ -102,10 +103,23 @@ function LessonContentBlocks({
               className="flex gap-3 rounded-lg border border-navy-600/25 bg-navy-600/8 px-4 py-3"
             >
               <InfoIcon className="mt-1 size-4 shrink-0 text-navy-600" />
-              <p>
-                <span className="font-semibold text-navy-600">Note:</span>{' '}
-                <LessonRichText text={block.text} />
-              </p>
+              <div className="flex min-w-0 flex-col gap-4">
+                <p>
+                  <span className="font-semibold text-navy-600">Note:</span>{' '}
+                  <LessonRichText text={block.text} />
+                </p>
+
+                {block.content && (
+                  <LessonContentBlocks
+                    blocks={block.content}
+                    codeNamePrefix={getLessonNoteCodeNamePrefix(
+                      codeNamePrefix,
+                      blockIndex,
+                    )}
+                    onLoadSnippet={onLoadSnippet}
+                  />
+                )}
+              </div>
             </aside>
           )
         }

@@ -46,13 +46,10 @@ export type LessonListItem = {
   paragraphs: string[]
 }
 
-export type LessonContentBlock =
+/** Every block except `note`, so a note can hold blocks without nesting notes. */
+export type LessonProseBlock =
   | {
       type: 'paragraph'
-      text: string
-    }
-  | {
-      type: 'note'
       text: string
     }
   | {
@@ -67,6 +64,14 @@ export type LessonContentBlock =
       type: 'code'
       language: 'sql' | 'text'
       contents: string
+    }
+
+export type LessonContentBlock =
+  | LessonProseBlock
+  | {
+      type: 'note'
+      text: string
+      content?: LessonProseBlock[]
     }
 
 export type LessonSection = {

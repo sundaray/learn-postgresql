@@ -16,6 +16,7 @@ export type {
   LessonFormat,
   LessonListItem,
   LessonPlan,
+  LessonProseBlock,
   LessonSection,
   LessonStatement,
   LessonStepKind,
