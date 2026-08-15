@@ -1,9 +1,14 @@
 import { TaggedError } from 'better-result'
 
+import { readPostgresError } from './postgres-error'
+
 /** A statement sent to PGlite was rejected by PostgreSQL. */
 export class StatementFailed extends TaggedError('StatementFailed')<{
   cause: unknown
+  severity: string
   message: string
+  detail: string | null
+  hint: string | null
   position: number | null
 }> {}
 
@@ -25,7 +30,10 @@ export class SchemaUnavailable extends TaggedError('SchemaUnavailable')<{
   message: string
 }> {}
 
-/** Reads a human-readable message from an unknown thrown value. */
+/**
+ * Reads a human-readable message from an unknown thrown value, unpacking the
+ * fields the worker had to fold into the message.
+ */
 export function describeCause(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause)
+  return readPostgresError(cause).message
 }

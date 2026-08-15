@@ -2,11 +2,20 @@ import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 
 import { cn } from "@/lib/utils"
 
+type ScrollAreaProps = ScrollAreaPrimitive.Root.Props & {
+  /** Which scrollbars this area owns. An axis with no bar still scrolls. */
+  orientation?: "vertical" | "horizontal" | "both"
+  /** Classes applied to the element that actually owns the scroll position. */
+  viewportClassName?: string
+}
+
 function ScrollArea({
   className,
   children,
+  orientation = "vertical",
+  viewportClassName,
   ...props
-}: ScrollAreaPrimitive.Root.Props) {
+}: ScrollAreaProps) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
@@ -15,12 +24,16 @@ function ScrollArea({
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        className={cn(
+          "size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1",
+          viewportClassName
+        )}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
-      <ScrollAreaPrimitive.Corner />
+      {orientation !== "horizontal" && <ScrollBar />}
+      {orientation !== "vertical" && <ScrollBar orientation="horizontal" />}
+      {orientation === "both" && <ScrollAreaPrimitive.Corner />}
     </ScrollAreaPrimitive.Root>
   )
 }

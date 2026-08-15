@@ -1,7 +1,9 @@
-import { AlertTriangleIcon, TablePropertiesIcon } from 'lucide-react'
+import { TablePropertiesIcon } from 'lucide-react'
+import { useState } from 'react'
 
 import { ScrollArea } from '@/components/ui/scroll-area'
 
+import { formatPostgresError } from '../db/format-postgres-error'
 import type { QueryRun } from '../db/run-query'
 
 type QueryResultsPanelProps = {
@@ -18,7 +20,7 @@ function DataTable({
   rows: readonly (readonly (string | number | null)[])[]
 }) {
   return (
-    <div className="overflow-x-auto">
+    <ScrollArea orientation="horizontal" className="w-full">
       <table className="w-full border-collapse text-center text-sm">
         <thead>
           <tr className="border-b">
@@ -47,18 +49,23 @@ function DataTable({
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollArea>
   )
 }
 
-/** Text EXPLAIN is psql-styled; JSON, XML and YAML remain raw documents. */
-function ExplainOutput({ text }: { text: string }) {
+/**
+ * Everything psql prints as plain text goes through here: EXPLAIN plans and
+ * error blocks alike. The caret under a failing statement only lines up while
+ * the text stays unwrapped, so long lines scroll sideways instead.
+ */
+function ConsoleOutput({ text }: { text: string }) {
   return (
-    <div className="overflow-x-auto px-4 py-4">
-      <pre className="database-output font-mono text-xs leading-6 whitespace-pre">
+    <ScrollArea orientation="horizontal" className="w-full">
+      {/* Padding belongs on the text so it survives to the end of a long line. */}
+      <pre className="database-output px-4 py-4 font-mono text-sm leading-6 whitespace-pre">
         {text}
       </pre>
-    </div>
+    </ScrollArea>
   )
 }
 
@@ -82,20 +89,13 @@ function RowsTable({ run }: { run: QueryRun }) {
 
 function ResultBody({ run }: { run: QueryRun }) {
   if (run.error) {
-    return (
-      <div className="flex gap-3 px-4 py-5">
-        <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
-        <p className="font-mono text-sm leading-6 break-words text-muted-foreground">
-          {run.error.message}
-        </p>
-      </div>
-    )
+    return <ConsoleOutput text={formatPostgresError(run.error, run.sql)} />
   }
 
   if (run.explainOutput && run.rows.length > 0) {
     return (
       <>
-        <ExplainOutput text={run.explainOutput} />
+        <ConsoleOutput text={run.explainOutput} />
         <div className="border-t">
           <RowsTable run={run} />
         </div>
@@ -104,7 +104,7 @@ function ResultBody({ run }: { run: QueryRun }) {
   }
 
   if (run.explainOutput) {
-    return <ExplainOutput text={run.explainOutput} />
+    return <ConsoleOutput text={run.explainOutput} />
   }
 
   if (run.rows.length > 0) {
@@ -118,10 +118,10 @@ function ResultBody({ run }: { run: QueryRun }) {
   )
 }
 
-/** A plan speaks for itself, so only row results and failures get a footer. */
+/** A plan and an error message both speak for themselves, so neither gets a footer. */
 function resultFooter(run: QueryRun): string | null {
   if (run.error) {
-    return 'Statement failed'
+    return null
   }
 
   if (run.explainOutput && run.rows.length === 0) {
@@ -134,8 +134,28 @@ function resultFooter(run: QueryRun): string | null {
     : `Rows: ${run.rows.length.toLocaleString()}`
 }
 
+/**
+ * A scroll area decides whether to show a scrollbar from a ResizeObserver on
+ * its viewport alone, and this viewport fills the panel whatever the result
+ * is. A shorter result therefore leaves the previous measurement standing, and
+ * with it a scrollbar for output that is no longer there. Changing the key
+ * remounts the area so each result is measured on its own.
+ */
+function useMeasurementKey(run: QueryRun | null): number {
+  const [measuredRun, setMeasuredRun] = useState(run)
+  const [key, setKey] = useState(0)
+
+  if (measuredRun !== run) {
+    setMeasuredRun(run)
+    setKey((current) => current + 1)
+  }
+
+  return key
+}
+
 export function QueryResultsPanel({ run }: QueryResultsPanelProps) {
   const footer = run ? resultFooter(run) : null
+  const measurementKey = useMeasurementKey(run)
 
   return (
     <section className="flex h-full min-w-0 flex-col bg-background">
@@ -146,7 +166,7 @@ export function QueryResultsPanel({ run }: QueryResultsPanelProps) {
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea key={measurementKey} className="min-h-0 flex-1">
         {run ? (
           <>
             <ResultBody run={run} />

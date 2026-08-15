@@ -21,7 +21,7 @@ export const howPostgresqlExecutesSqlLesson = {
     {
       title: 'Rewriting',
       paragraphs: [
-        'The query tree produced during parsing is then passed to a component called the **rewriter**. The rewriter checks whether any rewrite rules apply to the tables or views involved in the statement. A rewrite rule is an instruction stored in the database that tells PostgreSQL how to transform a query before it is planned and executed.',
+        'The query tree produced during parsing is then passed to a component called the **rewriter**. The rewriter checks whether any rewrite rules apply to the tables or views involved in the statement. A rewrite rule is an instruction stored in the database that tells PostgreSQL how to transform a query before it\'s planned and executed.',
         'The most common use of rewriting is to handle **views**. When a query refers to a view, the rewriter expands the view using the query that defines it. This allows PostgreSQL to work with the underlying tables.',
         'Rewrite rules can also replace the original query or add additional queries. If no rewrite rule applies, the query tree remains unchanged.',
         'The resulting query tree, or query trees, is then passed to the **planning and optimization stage**.',
@@ -30,9 +30,9 @@ export const howPostgresqlExecutesSqlLesson = {
     {
       title: 'Planning and optimization',
       paragraphs: [
-        'Each query tree produced during rewriting is passed to the **planner**, also called the **optimizer**. A SQL statement describes the result PostgreSQL must produce, but it does not normally specify the exact steps for producing it. PostgreSQL can often obtain the same result in several different ways.',
+        'Each query tree produced during rewriting is passed to the **planner**, also called the **optimizer**. A SQL statement describes the result PostgreSQL must produce, but it doesn\'t normally specify the exact steps for producing it. PostgreSQL can often obtain the same result in several different ways.',
         'The planner considers different ways of carrying out the query. For example, it may choose a **sequential scan**, which scans the table, or one of several ways of using an index, such as an **index scan**. When several tables are involved, it also considers different ways and orders in which to join them.',
-        'To compare these options, the planner uses statistics about the data, such as the approximate number of rows in a table and how values are distributed across its columns. It assigns an estimated **cost** to each option based on the amount of work it expects PostgreSQL to perform. Cost does not refer to money or guarantee the actual execution time. It is a value PostgreSQL uses to compare the available options.',
+        'To compare these options, the planner uses statistics about the data, such as the approximate number of rows in a table and how values are distributed across its columns. It assigns an estimated **cost** to each option based on the amount of work it expects PostgreSQL to perform. Cost doesn\'t refer to money or guarantee the actual execution time. It\'s a value PostgreSQL uses to compare the available options.',
         'The planner selects the option with the lowest estimated cost and turns it into an **execution plan**. This plan describes the operations the executor should perform and the order in which it should perform them. The execution plan is then passed to the execution stage.',
       ],
     },

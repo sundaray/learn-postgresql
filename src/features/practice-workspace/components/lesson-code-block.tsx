@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import type { ReactNode } from 'react'
 import { File } from '@pierre/diffs/react'
-import { CheckIcon, ClipboardIcon, Code2Icon } from 'lucide-react'
+import { CheckIcon, ClipboardIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -9,11 +17,25 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-const fileOptions = {
-  theme: 'night-owl',
-  disableFileHeader: true,
-  overflow: 'scroll',
-} as const
+import type { LessonCodeBlockPreloads } from './lesson-code-files'
+import { lessonCodeFileOptions } from './lesson-code-files'
+
+const LessonCodeBlockPreloadContext =
+  createContext<LessonCodeBlockPreloads>({})
+
+export function LessonCodeBlockPreloadProvider({
+  children,
+  preloads,
+}: {
+  children: ReactNode
+  preloads: LessonCodeBlockPreloads
+}) {
+  return (
+    <LessonCodeBlockPreloadContext.Provider value={preloads}>
+      {children}
+    </LessonCodeBlockPreloadContext.Provider>
+  )
+}
 
 type LessonCodeBlockProps = {
   name: string
@@ -29,7 +51,12 @@ export function LessonCodeBlock({
 }: LessonCodeBlockProps) {
   const [copied, setCopied] = useState(false)
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const preloads = useContext(LessonCodeBlockPreloadContext)
   const file = useMemo(() => ({ name, contents }), [name, contents])
+  const prerenderedHTML = preloads[name]
+  /** A one-line block is too short to pin the button to the top without it
+      looking top-heavy, so it gets centred instead. */
+  const isSingleLine = contents.trim().split('\n').length === 1
 
   useEffect(() => {
     return () => {
@@ -63,33 +90,44 @@ export function LessonCodeBlock({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="mt-1 flex justify-end">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={copied ? 'Code copied' : 'Copy code'}
-                onClick={() => void copyCode()}
-              />
-            }
-          >
-            {copied ? (
-              <CheckIcon data-icon="inline-start" aria-hidden="true" />
-            ) : (
-              <ClipboardIcon data-icon="inline-start" aria-hidden="true" />
-            )}
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Copy code</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
+      <div className="dark relative overflow-hidden rounded-lg border bg-background text-sm leading-normal">
+        <File
+          file={file}
+          options={lessonCodeFileOptions}
+          {...(prerenderedHTML ? { prerenderedHTML } : {})}
+        />
 
-      <div className="dark overflow-hidden rounded-lg border bg-background text-sm leading-normal">
-        <File file={file} options={fileOptions} />
+        <div
+          className={
+            isSingleLine
+              ? 'absolute inset-y-0 right-2 flex items-center'
+              : 'absolute top-2 right-2'
+          }
+        >
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="bg-navy-800 text-white hover:bg-[color-mix(in_oklch,var(--color-navy-800),white_10%)] hover:text-white"
+                  aria-label={copied ? 'Code copied' : 'Copy code'}
+                  onClick={() => void copyCode()}
+                />
+              }
+            >
+              {copied ? (
+                <CheckIcon data-icon="inline-start" aria-hidden="true" />
+              ) : (
+                <ClipboardIcon data-icon="inline-start" aria-hidden="true" />
+              )}
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Copy code</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {onLoadInEditor && (
@@ -97,10 +135,9 @@ export function LessonCodeBlock({
           type="button"
           variant="ghost"
           size="sm"
-          className="mt-1 -ml-2.5 self-start text-muted-foreground"
+          className="self-start text-muted-foreground"
           onClick={onLoadInEditor}
         >
-          <Code2Icon data-icon="inline-start" />
           Load in editor
         </Button>
       )}

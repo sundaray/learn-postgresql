@@ -52,7 +52,10 @@ const failedStatementRun: QueryRun = {
   explainOutput: null,
   durationMs: 4.1,
   error: {
+    severity: 'ERROR',
     message: 'relation "prodcts" does not exist',
+    detail: null,
+    hint: null,
     position: 15,
   },
 }
@@ -196,9 +199,9 @@ function WorkspaceStates() {
       />
 
       <WorkspaceState
-        title="6. Statement failed"
+        title="6. Statement rejected by PostgreSQL"
         when="The workspace is healthy and the SQL itself was rejected. The one failure that already works today."
-        shows="Output panel shows the PostgreSQL message and a Statement failed footer. Editor footer stays green: the playground is fine, the query was not."
+        shows="Output panel shows the psql error block: severity and message, the offending line with a caret under it, then detail and hint when PostgreSQL sends them. No footer. Editor footer stays green: the playground is fine, the query was not."
         props={{
           ...baseProps,
           sql: 'SELECT * FROM prodcts;',

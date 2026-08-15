@@ -9,9 +9,9 @@
 //   pnpm remove sharp png-to-ico
 //
 // The icon is its own artwork rather than a crop of the logo taken at build
-// time: it is the elephant's head on a solid tile, and the reasoning behind the
-// shape lives in a comment at the top of that file. Everything in public/ is a
-// render of it, so all the icons agree.
+// time: it is the elephant on a white square, and where it came from is noted in
+// a comment at the top of that file. Everything in public/ is a render of it, so
+// all the icons agree.
 
 import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -32,17 +32,6 @@ const iconSvg = await readFile(sourcePath, 'utf8')
 const sizedSvg = (svg, size) =>
   Buffer.from(svg.replace('<svg ', `<svg width="${size}" height="${size}" `))
 
-// iOS puts its own rounded mask over the touch icon, so shipping rounded corners
-// there would show the tile's corners inside Apple's, with white slivers between
-// the two. This squares off the tile for that one file.
-const squareCorners = (svg) => {
-  const squared = svg.replaceAll(/ rx="[\d.]+"/g, '')
-  if (squared === svg) {
-    throw new Error('No rx to strip. The icon changed; re-check squareCorners.')
-  }
-  return squared
-}
-
 await writeFile(join(publicDir, 'favicon.svg'), iconSvg)
 console.log('wrote favicon.svg')
 
@@ -57,16 +46,14 @@ async function writePng(name, size, options) {
   console.log('wrote', name)
 }
 
-// Transparent outside the tile's rounded corners, for browser tabs and Android.
+// Transparent around the mark, for browser tabs and Android.
 await writePng('favicon-16.png', 16)
 await writePng('favicon-32.png', 32)
 await writePng('favicon-192.png', 192)
 await writePng('favicon-512.png', 512)
-// Apple touch icon: square, and flattened because iOS renders transparency black.
-await writePng('apple-touch-icon.png', 180, {
-  svg: squareCorners(iconSvg),
-  background: '#012148',
-})
+// Apple touch icon: flattened because iOS renders transparency black. White is
+// the ground the mark was drawn on, and it keeps the navy of the head readable.
+await writePng('apple-touch-icon.png', 180, { background: '#ffffff' })
 
 // Multi-size .ico for the auto-requested /favicon.ico and legacy contexts.
 const icoBuffers = await Promise.all(

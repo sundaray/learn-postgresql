@@ -3,14 +3,13 @@ import { Result } from 'better-result'
 
 import type { LessonStatement } from '@/features/lessons'
 
-import { StatementFailed, describeCause } from './errors'
+import { StatementFailed } from './errors'
+import type { PostgresError } from './postgres-error'
+import { readPostgresError } from './postgres-error'
 
 export type StatementLabel = LessonStatement | 'OTHER'
 
-export type QueryRunError = {
-  message: string
-  position: number | null
-}
+export type QueryRunError = PostgresError
 
 export type QueryRun = {
   sql: string
@@ -84,22 +83,6 @@ export function labelStatement(statement: string): StatementLabel {
   if (normalized.startsWith('DROP INDEX')) return 'DROP INDEX'
 
   return 'OTHER'
-}
-
-function readErrorPosition(error: unknown): number | null {
-  if (typeof error !== 'object' || error === null) {
-    return null
-  }
-
-  const candidate = (error as { position?: unknown }).position
-
-  if (typeof candidate === 'number') return candidate
-  if (typeof candidate === 'string') {
-    const parsed = Number.parseInt(candidate, 10)
-    return Number.isNaN(parsed) ? null : parsed
-  }
-
-  return null
 }
 
 const explainFormats = ['TEXT', 'JSON', 'XML', 'YAML'] as const
@@ -246,11 +229,7 @@ export async function runQuery(
   const execResult = await Result.tryPromise({
     try: () => database.exec(sql),
     catch: (cause) =>
-      new StatementFailed({
-        cause,
-        message: describeCause(cause),
-        position: readErrorPosition(cause),
-      }),
+      new StatementFailed({ cause, ...readPostgresError(cause) }),
   })
 
   if (Result.isError(execResult)) {
@@ -258,7 +237,10 @@ export async function runQuery(
       ...emptyRun,
       durationMs: performance.now() - startedAt,
       error: {
+        severity: execResult.error.severity,
         message: execResult.error.message,
+        detail: execResult.error.detail,
+        hint: execResult.error.hint,
         position: execResult.error.position,
       },
     }

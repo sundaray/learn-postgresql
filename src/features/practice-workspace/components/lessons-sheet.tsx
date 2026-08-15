@@ -12,6 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
 
 type LessonsSheetProps = {
   appName: string
@@ -77,7 +78,10 @@ export function LessonsSheet({
                     <Button
                       type="button"
                       variant={isCurrent ? 'secondary' : 'ghost'}
-                      className="h-auto w-full justify-start gap-3 px-3 py-3 text-left"
+                      className={cn(
+                        'h-auto w-full justify-start gap-3 px-3 py-3 text-left',
+                        isCurrent ? 'font-semibold' : 'font-normal',
+                      )}
                       aria-current={isCurrent ? 'page' : undefined}
                       onClick={() => onOpenLesson(lessonIndex)}
                     />

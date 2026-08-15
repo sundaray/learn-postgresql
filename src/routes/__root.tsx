@@ -26,7 +26,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
-      // The elephant's head on a tile, rendered from
+      // The elephant mark on a transparent ground, rendered from
       // src/assets/learn-postgresql-icon.svg by scripts/generate-favicons.mjs.
       // Modern browsers prefer the SVG; the PNG/ICO fallbacks below are for
       // Safari, bookmarks, and the auto-requested /favicon.ico.

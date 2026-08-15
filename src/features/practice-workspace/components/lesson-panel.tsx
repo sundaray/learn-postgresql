@@ -30,6 +30,10 @@ import { cn } from '@/lib/utils'
 import { practiceWorkspaceConfig } from '../data/workspace-config'
 
 import { LessonCodeBlock } from './lesson-code-block'
+import {
+  getLessonContentCodeFileName,
+  getLessonStepCodeFileName,
+} from './lesson-code-files'
 import { LessonDiagram } from './lesson-diagram'
 import { LessonRichText } from './lesson-rich-text'
 
@@ -141,7 +145,11 @@ function LessonContentBlocks({
           return (
             <LessonCodeBlock
               key={`code-${blockIndex}`}
-              name={`${codeNamePrefix}-${blockIndex + 1}.txt`}
+              name={getLessonContentCodeFileName(
+                codeNamePrefix,
+                blockIndex,
+                block.language,
+              )}
               contents={block.contents}
             />
           )
@@ -150,7 +158,11 @@ function LessonContentBlocks({
         return (
           <LessonCodeBlock
             key={`code-${blockIndex}`}
-            name={`${codeNamePrefix}-${blockIndex + 1}.sql`}
+            name={getLessonContentCodeFileName(
+              codeNamePrefix,
+              blockIndex,
+              block.language,
+            )}
             contents={block.contents}
             onLoadInEditor={() => onLoadSnippet(block.contents)}
           />
@@ -204,7 +216,13 @@ export function LessonPanel({
         </Breadcrumb>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
+      {/* Keyed on the lesson so a shorter one is measured for overflow afresh
+          rather than inheriting the previous lesson's scrollbar. */}
+      <ScrollArea
+        key={lesson.slug}
+        className="min-h-0 flex-1"
+        viewportClassName="scroll-fade"
+      >
         <article className="flex flex-col gap-8 px-7 py-8">
           <header className="flex flex-col gap-3">
             {lesson.category && (
@@ -343,7 +361,10 @@ export function LessonPanel({
                     {step.sql && (
                       <div className="flex flex-col gap-2">
                         <LessonCodeBlock
-                          name={`${lesson.slug}-${step.id}.sql`}
+                          name={getLessonStepCodeFileName(
+                            lesson.slug,
+                            step.id,
+                          )}
                           contents={step.sql}
                         />
 

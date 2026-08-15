@@ -5,7 +5,11 @@ import {
   getLessonDescription,
   postgresqlCourse,
 } from '@/features/lessons'
-import { PracticeWorkspace } from '@/features/practice-workspace'
+import {
+  LessonCodeBlockPreloadProvider,
+  PracticeWorkspace,
+  preloadLessonCodeBlocks,
+} from '@/features/practice-workspace'
 
 export const Route = createFileRoute('/lessons/$lessonSlug')({
   // An unknown slug must answer 404 rather than quietly render lesson one,
@@ -15,6 +19,8 @@ export const Route = createFileRoute('/lessons/$lessonSlug')({
       throw notFound()
     }
   },
+  loader: ({ params }) =>
+    preloadLessonCodeBlocks({ data: { lessonSlug: params.lessonSlug } }),
   head: ({ params }) => {
     const lesson = findLessonBySlug(postgresqlCourse.slug, params.lessonSlug)
 
@@ -36,17 +42,20 @@ export const Route = createFileRoute('/lessons/$lessonSlug')({
 
 function LessonWorkspace() {
   const { lessonSlug } = Route.useParams()
+  const codeBlockPreloads = Route.useLoaderData()
   const navigate = useNavigate()
 
   return (
-    <PracticeWorkspace
-      lessonSlug={lessonSlug}
-      onOpenLesson={(nextLessonSlug) => {
-        void navigate({
-          to: '/lessons/$lessonSlug',
-          params: { lessonSlug: nextLessonSlug },
-        })
-      }}
-    />
+    <LessonCodeBlockPreloadProvider preloads={codeBlockPreloads}>
+      <PracticeWorkspace
+        lessonSlug={lessonSlug}
+        onOpenLesson={(nextLessonSlug) => {
+          void navigate({
+            to: '/lessons/$lessonSlug',
+            params: { lessonSlug: nextLessonSlug },
+          })
+        }}
+      />
+    </LessonCodeBlockPreloadProvider>
   )
 }

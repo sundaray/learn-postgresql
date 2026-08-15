@@ -57,7 +57,7 @@ function LessonsIndex() {
                 <span className="text-muted-foreground">
                   {lessonIndex + 1}.
                 </span>
-                <span className="font-medium underline-offset-2 group-hover:underline">
+                <span className="font-normal underline-offset-2 group-hover:underline">
                   {lesson.title}
                 </span>
               </Link>
