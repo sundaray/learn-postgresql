@@ -39,20 +39,27 @@ export function usePracticeDatabase(): PracticeDatabaseState {
 
   useEffect(() => {
     let active = true
-    const database = createPracticeDatabase()
-
-    const unsubscribe = database.onLeaderChange(() => {
-      if (active) {
-        setState((previous) =>
-          previous.status === 'ready'
-            ? { ...previous, isLeader: database.isLeader }
-            : previous,
-        )
-      }
-    })
+    let database: PracticeDatabase | null = null
+    let unsubscribe = () => {}
 
     void Result.tryPromise({
-      try: () => database.waitReady,
+      try: async () => {
+        database = await createPracticeDatabase()
+        const currentDatabase = database
+
+        unsubscribe = currentDatabase.onLeaderChange(() => {
+          if (active) {
+            setState((previous) =>
+              previous.status === 'ready'
+                ? { ...previous, isLeader: currentDatabase.isLeader }
+                : previous,
+            )
+          }
+        })
+
+        await currentDatabase.waitReady
+        return currentDatabase
+      },
       catch: (cause) =>
         new DatabaseStartFailed({ cause, message: describeCause(cause) }),
     }).then((readyResult) => {
@@ -62,11 +69,11 @@ export function usePracticeDatabase(): PracticeDatabaseState {
 
       setState(
         readyResult.match({
-          ok: (): PracticeDatabaseState => ({
+          ok: (readyDatabase): PracticeDatabaseState => ({
             status: 'ready',
-            database,
+            database: readyDatabase,
             error: null,
-            isLeader: database.isLeader,
+            isLeader: readyDatabase.isLeader,
           }),
           err: (error): PracticeDatabaseState => ({
             status: 'error',
@@ -81,7 +88,9 @@ export function usePracticeDatabase(): PracticeDatabaseState {
     return () => {
       active = false
       unsubscribe()
-      void database.close()
+      if (database) {
+        void database.close()
+      }
     }
   }, [])
 
