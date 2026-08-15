@@ -111,7 +111,7 @@ export function LessonCodeBlock({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="bg-navy-800 text-white hover:bg-[color-mix(in_oklch,var(--color-navy-800),white_10%)] hover:text-white"
+                  className="bg-navy-800 text-white hover:bg-navy-800 hover:text-white"
                   aria-label={copied ? 'Code copied' : 'Copy code'}
                   onClick={() => void copyCode()}
                 />
