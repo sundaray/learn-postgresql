@@ -58,6 +58,11 @@ worker({
       relaxedDurability: true,
     })
 
+    // Without this the session picks up the machine's zone, and a timestamptz
+    // reads differently in Mumbai than in New York. The lessons write their
+    // cursors as UTC literals, so the session runs in UTC for every learner.
+    await database.exec("SET TimeZone = 'UTC';")
+
     await seedDatabase(database)
 
     return keepErrorFields(database)

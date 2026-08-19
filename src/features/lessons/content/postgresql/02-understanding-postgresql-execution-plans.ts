@@ -5,6 +5,7 @@ export const understandingPostgresqlExecutionPlansLesson = {
   slug: 'understanding-postgresql-execution-plans',
   order: 2,
   title: 'Understanding PostgreSQL Execution Plans',
+  category: 'Indexes',
   introduction: [
     "In the previous chapter, I explained that during the planning and optimization stage, PostgreSQL's planner, also called the optimizer, decides how a SQL statement should be executed.",
     'To make that decision, the planner considers different ways PostgreSQL could produce the required result. Each complete set of operations it considers is called a **candidate execution plan**.',
@@ -124,7 +125,7 @@ SELECT * FROM products;`,
         },
         {
           type: 'paragraph',
-          text: 'Finally, `(1 row)` tells you that the result returned by `EXPLAIN` contains one row. In this example, that row is the line describing the `Seq Scan` node. It does not mean that the original `SELECT` statement would return one row.',
+          text: "Finally, `(1 row)` tells you that the result returned by `EXPLAIN` contains one row. In this example, that row is the line describing the `Seq Scan` node. It doesn't mean that the original `SELECT` statement would return one row.",
         },
       ],
     },
@@ -194,7 +195,7 @@ ORDER BY price;`,
         },
         {
           type: 'paragraph',
-          text: 'How can you identify which lines are plan nodes and which are not? You can use the following rules:',
+          text: "How can you identify which lines are plan nodes and which aren't? You can use the following rules:",
         },
         {
           type: 'unordered-list',
@@ -226,7 +227,7 @@ ORDER BY price;`,
             { paragraphs: ['`Sort` is the root plan node.'] },
             {
               paragraphs: [
-                '`Sort Key: price` is not a plan node. It tells us that the `Sort` node will sort the rows by the `price` column.',
+                "`Sort Key: price` isn't a plan node. It tells us that the `Sort` node will sort the rows by the `price` column.",
               ],
             },
             {

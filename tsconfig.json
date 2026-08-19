@@ -13,8 +13,15 @@
     "noEmit": true,
     "types": ["node", "vite/client"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "content-collections": ["./.content-collections/generated"]
     }
   },
-  "include": ["src", "types", "alchemy.run.ts", "vite.config.ts"]
+  "include": [
+    "src",
+    "types",
+    "alchemy.run.ts",
+    "vite.config.ts",
+    "content-collections.ts"
+  ]
 }

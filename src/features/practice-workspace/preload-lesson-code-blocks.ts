@@ -1,15 +1,13 @@
 import { preloadFile } from '@pierre/diffs/ssr'
 import { createServerFn } from '@tanstack/react-start'
 
+import { codeBlockFileOptions } from '@/components/code-block-options'
 import {
   findLessonBySlug,
   postgresqlCourse,
 } from '@/features/lessons'
 
-import {
-  getLessonCodeFiles,
-  lessonCodeFileOptions,
-} from './components/lesson-code-files'
+import { getLessonCodeFiles } from './components/lesson-code-files'
 
 function validateLessonSlug(input: unknown) {
   if (typeof input !== 'object' || input === null) {
@@ -38,7 +36,7 @@ export const preloadLessonCodeBlocks = createServerFn({ method: 'GET' })
 
     const preloadedFiles = await Promise.all(
       getLessonCodeFiles(lesson).map((file) =>
-        preloadFile({ file, options: lessonCodeFileOptions }),
+        preloadFile({ file, options: codeBlockFileOptions }),
       ),
     )
 

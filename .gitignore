@@ -3,8 +3,11 @@ dist
 .output
 .nitro
 .tanstack
+.content-collections
 .vite
 .env
+.env.*
+!.env.example
 *.log
 .DS_Store
 src/routeTree.gen.ts

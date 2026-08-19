@@ -1,4 +1,7 @@
+export { LessonRichText } from './components/lesson-rich-text'
+export { LessonTitle } from './components/lesson-title'
 export { postgresqlCourse } from './content/postgresql'
+export { getLessonNumbersWithinCategory } from './lesson-numbering'
 export {
   findCourseBySlug,
   findLessonBySlug,

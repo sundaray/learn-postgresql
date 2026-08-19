@@ -3,6 +3,13 @@ import type { CoursePlan } from '../../model/lesson-plan.types'
 import { howPostgresqlExecutesSqlLesson } from './01-how-postgresql-executes-sql'
 import { understandingPostgresqlExecutionPlansLesson } from './02-understanding-postgresql-execution-plans'
 import { usingExplainAnalyzeToMeasureActualExecutionLesson } from './03-using-explain-analyze-to-measure-actual-execution'
+import { improvingQueryPerformanceWithIndexesLesson } from './04-improving-query-performance-with-indexes'
+import { paginatingResultsWithLimitAndOffsetLesson } from './05-paginating-results-with-limit-and-offset'
+import { understandingTheCostOfLargeOffsetsLesson } from './06-understanding-the-cost-of-large-offsets'
+import { introducingKeysetPaginationLesson } from './07-introducing-keyset-pagination'
+import { keysetPaginationWithMultipleSortColumnsLesson } from './08-keyset-pagination-with-multiple-sort-columns'
+import { navigatingForwardAndBackwardWithCursorsLesson } from './09-navigating-forward-and-backward-with-cursors'
+import { choosingBetweenOffsetAndKeysetPaginationLesson } from './10-choosing-between-offset-and-keyset-pagination'
 
 export const postgresqlCourse: CoursePlan = {
   id: 'postgresql-fundamentals',
@@ -56,5 +63,12 @@ export const postgresqlCourse: CoursePlan = {
     howPostgresqlExecutesSqlLesson,
     understandingPostgresqlExecutionPlansLesson,
     usingExplainAnalyzeToMeasureActualExecutionLesson,
+    improvingQueryPerformanceWithIndexesLesson,
+    paginatingResultsWithLimitAndOffsetLesson,
+    understandingTheCostOfLargeOffsetsLesson,
+    introducingKeysetPaginationLesson,
+    keysetPaginationWithMultipleSortColumnsLesson,
+    navigatingForwardAndBackwardWithCursorsLesson,
+    choosingBetweenOffsetAndKeysetPaginationLesson,
   ],
 }

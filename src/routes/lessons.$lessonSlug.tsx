@@ -1,12 +1,12 @@
 import { createFileRoute, notFound, useNavigate } from '@tanstack/react-router'
 
+import { CodeBlockPreloadProvider } from '@/components/code-block'
 import {
   findLessonBySlug,
   getLessonDescription,
   postgresqlCourse,
 } from '@/features/lessons'
 import {
-  LessonCodeBlockPreloadProvider,
   PracticeWorkspace,
   preloadLessonCodeBlocks,
 } from '@/features/practice-workspace'
@@ -46,7 +46,7 @@ function LessonWorkspace() {
   const navigate = useNavigate()
 
   return (
-    <LessonCodeBlockPreloadProvider preloads={codeBlockPreloads}>
+    <CodeBlockPreloadProvider preloads={codeBlockPreloads}>
       <PracticeWorkspace
         lessonSlug={lessonSlug}
         onOpenLesson={(nextLessonSlug) => {
@@ -56,6 +56,6 @@ function LessonWorkspace() {
           })
         }}
       />
-    </LessonCodeBlockPreloadProvider>
+    </CodeBlockPreloadProvider>
   )
 }

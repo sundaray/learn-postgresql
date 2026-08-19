@@ -1,5 +1,11 @@
 import type { PGlite } from '@electric-sql/pglite'
 
+/**
+ * The two members seeding reaches for. Naming the pair rather than PGlite lets
+ * the tab pass its worker handle, which carries both but is a separate type.
+ */
+type SeedDatabase = Pick<PGlite, 'exec' | 'query'>
+
 const schemaSql = `
 CREATE TABLE IF NOT EXISTS customers (
   id integer PRIMARY KEY,
@@ -93,7 +99,23 @@ SELECT
 FROM generate_series(1, 300000) AS n;
 `
 
-export async function seedDatabase(database: PGlite) {
+// Dropping the schema takes more than the seeded tables with it: an index the
+// learner added, or a table they created, goes too. That is what putting the
+// database back the way it started has to mean.
+const dropSql = `
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+`
+
+/** Discards everything in the database and builds the seeded state again. */
+export async function resetDatabase(database: SeedDatabase) {
+  await database.exec(dropSql)
+  await database.exec(schemaSql)
+  await database.exec(dataSql)
+  await database.exec('ANALYZE;')
+}
+
+export async function seedDatabase(database: SeedDatabase) {
   await database.exec(schemaSql)
 
   const existing = await database.query<{ count: number }>(
@@ -104,6 +126,11 @@ export async function seedDatabase(database: PGlite) {
     return
   }
 
-  await database.exec(dataSql)
-  await database.exec('ANALYZE;')
+  // An empty `orders` says nothing about the other three tables: a learner can
+  // empty one and leave the rest. Inserting on top of the survivors would
+  // collide on their primary keys, and since the whole block is one implicit
+  // transaction the collision would roll every insert back, leaving the same
+  // empty `orders` behind for the next reload to trip over. Clearing the
+  // schema first means the reseed always starts from nothing.
+  await resetDatabase(database)
 }

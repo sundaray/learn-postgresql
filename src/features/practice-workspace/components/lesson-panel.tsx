@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { LessonRichText } from '@/features/lessons'
 import type {
   LessonContentBlock,
   LessonFormat,
@@ -36,7 +37,6 @@ import {
   getLessonStepCodeFileName,
 } from './lesson-code-files'
 import { LessonDiagram } from './lesson-diagram'
-import { LessonRichText } from './lesson-rich-text'
 
 const lessonFormatLabels: Record<LessonFormat, string> = {
   'guided-lab': 'Guided lab',
@@ -219,9 +219,11 @@ export function LessonPanel({
             <BreadcrumbSeparator>
               <BreadcrumbSlashIcon />
             </BreadcrumbSeparator>
-            {/* The chapter groups related lessons; it has no page of its own. */}
+            {/* The parent chapter groups related lessons; it has no page of its own. */}
             <BreadcrumbItem>
-              <BreadcrumbPage>{practiceWorkspaceConfig.appName}</BreadcrumbPage>
+              <BreadcrumbPage>
+                {lesson.category ?? practiceWorkspaceConfig.appName}
+              </BreadcrumbPage>
             </BreadcrumbItem>
             <BreadcrumbSeparator>
               <BreadcrumbSlashIcon />

@@ -5,6 +5,7 @@ export const howPostgresqlExecutesSqlLesson = {
   slug: 'how-postgresql-executes-sql',
   order: 1,
   title: 'How PostgreSQL executes a SQL statement',
+  category: 'Indexes',
   introduction: [
     'In PostgreSQL, the execution of a SQL statement goes through 4 main stages: **parsing, rewriting, planning and optimization, and execution**.',
   ],

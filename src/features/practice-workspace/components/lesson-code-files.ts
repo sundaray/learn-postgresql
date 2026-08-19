@@ -1,17 +1,9 @@
-import type { FileContents, FileOptions } from '@pierre/diffs'
+import type { FileContents } from '@pierre/diffs'
 
 import type {
   LessonContentBlock,
   LessonPlan,
 } from '@/features/lessons'
-
-export const lessonCodeFileOptions = {
-  theme: 'night-owl',
-  disableFileHeader: true,
-  overflow: 'scroll',
-} as const satisfies FileOptions<undefined>
-
-export type LessonCodeBlockPreloads = Readonly<Record<string, string>>
 
 export function getLessonContentCodeFileName(
   prefix: string,

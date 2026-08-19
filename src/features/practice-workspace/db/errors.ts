@@ -18,6 +18,12 @@ export class DatabaseStartFailed extends TaggedError('DatabaseStartFailed')<{
   message: string
 }> {}
 
+/** Rebuilding the seeded database from the workspace failed part way. */
+export class DatabaseResetFailed extends TaggedError('DatabaseResetFailed')<{
+  cause: unknown
+  message: string
+}> {}
+
 /** A lesson's setup SQL could not be applied to the practice database. */
 export class LessonSetupFailed extends TaggedError('LessonSetupFailed')<{
   cause: unknown

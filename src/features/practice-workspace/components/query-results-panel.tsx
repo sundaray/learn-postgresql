@@ -2,55 +2,14 @@ import { TablePropertiesIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
 
 import { formatPostgresError } from '../db/format-postgres-error'
 import type { QueryRun } from '../db/run-query'
+import { ResultGrid } from './result-grid'
 
 type QueryResultsPanelProps = {
   run: QueryRun | null
-}
-
-const rowLimit = 200
-
-function DataTable({
-  headers,
-  rows,
-}: {
-  headers: readonly string[]
-  rows: readonly (readonly (string | number | null)[])[]
-}) {
-  return (
-    <ScrollArea orientation="horizontal" className="w-full">
-      <table className="w-full border-collapse text-center text-sm">
-        <thead>
-          <tr className="border-b">
-            {headers.map((header) => (
-              <th
-                key={header}
-                className="border-r px-3 py-2 font-semibold last:border-r-0"
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr key={rowIndex} className="border-b last:border-b-0">
-              {row.map((cell, cellIndex) => (
-                <td
-                  key={cellIndex}
-                  className="border-r px-3 py-2 text-muted-foreground last:border-r-0"
-                >
-                  {cell === null ? 'NULL' : String(cell)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </ScrollArea>
-  )
 }
 
 /**
@@ -58,9 +17,15 @@ function DataTable({
  * error blocks alike. The caret under a failing statement only lines up while
  * the text stays unwrapped, so long lines scroll sideways instead.
  */
-function ConsoleOutput({ text }: { text: string }) {
+function ConsoleOutput({
+  text,
+  className,
+}: {
+  text: string
+  className?: string
+}) {
   return (
-    <ScrollArea orientation="horizontal" className="w-full">
+    <ScrollArea orientation="both" className={cn('min-h-0', className)}>
       {/* Padding belongs on the text so it survives to the end of a long line. */}
       <pre className="px-4 py-4 font-mono text-sm leading-6 whitespace-pre">
         {text}
@@ -69,69 +34,57 @@ function ConsoleOutput({ text }: { text: string }) {
   )
 }
 
-function RowsTable({ run }: { run: QueryRun }) {
-  return (
-    <DataTable
-      headers={run.fieldNames}
-      rows={run.rows.slice(0, rowLimit).map((row) =>
-        run.fieldNames.map((fieldName) => {
-          const value = row[fieldName]
-          return value === null || value === undefined
-            ? null
-            : typeof value === 'number'
-              ? value
-              : String(value)
-        }),
-      )}
-    />
-  )
-}
-
 function ResultBody({ run }: { run: QueryRun }) {
   if (run.error) {
-    return <ConsoleOutput text={formatPostgresError(run.error, run.sql)} />
+    return (
+      <ConsoleOutput
+        text={formatPostgresError(run.error, run.sql)}
+        className="flex-1"
+      />
+    )
   }
 
+  // Two statements ran, one of them an EXPLAIN. The plan keeps the height it
+  // needs up to half the panel, and the rows take what is left.
   if (run.explainOutput && run.rows.length > 0) {
     return (
       <>
-        <ConsoleOutput text={run.explainOutput} />
-        <div className="border-t">
-          <RowsTable run={run} />
+        <ConsoleOutput
+          text={run.explainOutput}
+          className="max-h-[50%] shrink-0 border-b"
+        />
+        <div className="min-h-0 flex-1">
+          <ResultGrid fields={run.fields} rows={run.rows} />
         </div>
       </>
     )
   }
 
   if (run.explainOutput) {
-    return <ConsoleOutput text={run.explainOutput} />
+    return <ConsoleOutput text={run.explainOutput} className="flex-1" />
   }
 
   if (run.rows.length > 0) {
-    return <RowsTable run={run} />
+    return (
+      <div className="min-h-0 flex-1">
+        <ResultGrid fields={run.fields} rows={run.rows} />
+      </div>
+    )
+  }
+
+  // A statement with no rows to show still gets an answer from PostgreSQL: the
+  // command tag. psql prints that tag on its own, so this does too.
+  if (run.commandTags.length > 0) {
+    return (
+      <ConsoleOutput text={run.commandTags.join('\n')} className="flex-1" />
+    )
   }
 
   return (
     <p className="px-4 py-5 text-center text-sm text-muted-foreground">
-      Statement completed. No rows returned.
+      Nothing to run.
     </p>
   )
-}
-
-/** A plan and an error message both speak for themselves, so neither gets a footer. */
-function resultFooter(run: QueryRun): string | null {
-  if (run.error) {
-    return null
-  }
-
-  if (run.explainOutput && run.rows.length === 0) {
-    return null
-  }
-
-  const shown = Math.min(run.rows.length, rowLimit)
-  return run.rows.length > rowLimit
-    ? `Rows: ${run.rows.length.toLocaleString()} (showing ${shown})`
-    : `Rows: ${run.rows.length.toLocaleString()}`
 }
 
 /**
@@ -139,7 +92,8 @@ function resultFooter(run: QueryRun): string | null {
  * its viewport alone, and this viewport fills the panel whatever the result
  * is. A shorter result therefore leaves the previous measurement standing, and
  * with it a scrollbar for output that is no longer there. Changing the key
- * remounts the area so each result is measured on its own.
+ * remounts the body so each result is measured on its own, and it starts every
+ * result at the top rather than wherever the last one was scrolled to.
  */
 function useMeasurementKey(run: QueryRun | null): number {
   const [measuredRun, setMeasuredRun] = useState(run)
@@ -154,7 +108,6 @@ function useMeasurementKey(run: QueryRun | null): number {
 }
 
 export function QueryResultsPanel({ run }: QueryResultsPanelProps) {
-  const footer = run ? resultFooter(run) : null
   const measurementKey = useMeasurementKey(run)
 
   return (
@@ -166,23 +119,15 @@ export function QueryResultsPanel({ run }: QueryResultsPanelProps) {
         </div>
       </div>
 
-      <ScrollArea key={measurementKey} className="min-h-0 flex-1">
+      <div key={measurementKey} className="flex min-h-0 flex-1 flex-col">
         {run ? (
-          <>
-            <ResultBody run={run} />
-            {footer && (
-              <p className="border-t px-4 py-2 text-center text-sm font-semibold">
-                {footer}
-              </p>
-            )}
-          </>
+          <ResultBody run={run} />
         ) : (
           <p className="px-4 py-5 text-center text-sm text-muted-foreground">
             Run your query to see the output here.
           </p>
         )}
-
-      </ScrollArea>
+      </div>
     </section>
   )
 }

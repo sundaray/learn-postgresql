@@ -1,4 +1,5 @@
-import type { PGliteInterface, Results } from '@electric-sql/pglite'
+import { parse, protocol } from '@electric-sql/pglite'
+import type { PGlite, Results, messages } from '@electric-sql/pglite'
 import { Result } from 'better-result'
 
 import type { LessonStatement } from '@/features/lessons'
@@ -11,16 +12,30 @@ export type StatementLabel = LessonStatement | 'OTHER'
 
 export type QueryRunError = PostgresError
 
+export type ResultField = {
+  name: string
+  /** The column's PostgreSQL type, so values print the way psql prints them. */
+  dataTypeId: number
+}
+
 export type QueryRun = {
   sql: string
   statements: StatementLabel[]
   rows: Record<string, unknown>[]
-  fieldNames: string[]
+  fields: ResultField[]
   affectedRows: number | null
+  /** PostgreSQL's own reply to each statement: `CREATE INDEX`, `UPDATE 3`. */
+  commandTags: string[]
   explainOutput: string | null
   durationMs: number
   error: QueryRunError | null
 }
+
+/**
+ * The two members `exec` reaches for internally. PGliteInterface leaves both
+ * out, so the parameter names the pair this module uses instead.
+ */
+type QueryDatabase = Pick<PGlite, 'execProtocolStream' | 'parsers'>
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -207,8 +222,39 @@ function findRowResult(
     )?.[1]
 }
 
+function readCommandTag(message: messages.BackendMessage): string | null {
+  if (message.name !== 'commandComplete' || !('text' in message)) {
+    return null
+  }
+
+  return typeof message.text === 'string' ? message.text : null
+}
+
+/**
+ * PostgreSQL answers every statement with a command tag, and for a statement
+ * that returns no rows the tag is the entire answer: `CREATE INDEX` for one,
+ * `UPDATE 3` for another. PGlite's `exec` reads the tag only far enough to
+ * pull an affected-row count out of it and then throws the text away, so this
+ * sends the same simple-query message `exec` sends and keeps both: PGlite
+ * still parses the rows, and the tags survive alongside them.
+ */
+async function execKeepingCommandTags(database: QueryDatabase, sql: string) {
+  const backendMessages = await database.execProtocolStream(
+    protocol.serialize.query(sql),
+  )
+
+  return {
+    results: parse.parseResults(backendMessages, database.parsers),
+    commandTags: backendMessages.flatMap((message) => {
+      const tag = readCommandTag(message)
+
+      return tag === null ? [] : [tag]
+    }),
+  }
+}
+
 export async function runQuery(
-  database: PGliteInterface,
+  database: QueryDatabase,
   sql: string,
 ): Promise<QueryRun> {
   const statementTexts = splitStatements(sql)
@@ -219,15 +265,16 @@ export async function runQuery(
     sql,
     statements,
     rows: [],
-    fieldNames: [],
+    fields: [],
     affectedRows: null,
+    commandTags: [],
     explainOutput: null,
   }
 
   // The statement reaches PostgreSQL byte for byte, so EXPLAIN keeps whatever
   // options the learner typed and error positions stay meaningful.
   const execResult = await Result.tryPromise({
-    try: () => database.exec(sql),
+    try: () => execKeepingCommandTags(database, sql),
     catch: (cause) =>
       new StatementFailed({ cause, ...readPostgresError(cause) }),
   })
@@ -246,15 +293,20 @@ export async function runQuery(
     }
   }
 
-  const results = execResult.value
+  const { results, commandTags } = execResult.value
   const rowResult = findRowResult(results, statements)
   const rawRows: unknown[] = rowResult?.rows ?? []
 
   return {
     ...emptyRun,
     rows: rawRows.filter(isRecord),
-    fieldNames: rowResult?.fields.map((field) => field.name) ?? [],
+    fields:
+      rowResult?.fields.map((field) => ({
+        name: field.name,
+        dataTypeId: field.dataTypeID,
+      })) ?? [],
     affectedRows: rowResult?.affectedRows ?? null,
+    commandTags,
     explainOutput: readExplainOutput(results, statementTexts, statements),
     durationMs: performance.now() - startedAt,
     error: null,

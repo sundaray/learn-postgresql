@@ -1,5 +1,5 @@
 import { ListIcon, XIcon } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import {
+  LessonTitle,
+  getLessonNumbersWithinCategory,
+} from '@/features/lessons'
 import { cn } from '@/lib/utils'
 
 type LessonsSheetProps = {
@@ -19,6 +23,7 @@ type LessonsSheetProps = {
   bounds: CSSProperties
   currentLesson: number
   lessons: readonly {
+    category?: string
     id: string
     title: string
   }[]
@@ -34,6 +39,7 @@ export function LessonsSheet({
   onOpenLesson,
 }: LessonsSheetProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const lessonNumbers = getLessonNumbersWithinCategory(lessons, appName)
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -70,26 +76,40 @@ export function LessonsSheet({
           <nav aria-label={`${appName} lessons`} className="flex flex-col gap-1">
             {lessons.map((lesson, lessonIndex) => {
               const isCurrent = lessonIndex === currentLesson - 1
+              const category = lesson.category ?? appName
+              const previousCategory =
+                lessons[lessonIndex - 1]?.category ?? appName
 
               return (
-                <SheetClose
-                  key={lesson.id}
-                  render={
-                    <Button
-                      type="button"
-                      variant={isCurrent ? 'secondary' : 'ghost'}
-                      className={cn(
-                        'h-auto w-full justify-start gap-3 px-3 py-3 text-left',
-                        isCurrent ? 'font-semibold' : 'font-normal',
-                      )}
-                      aria-current={isCurrent ? 'page' : undefined}
-                      onClick={() => onOpenLesson(lessonIndex)}
-                    />
-                  }
-                >
-                  <span className="shrink-0">{lessonIndex + 1}.</span>
-                  <span className="min-w-0 truncate">{lesson.title}</span>
-                </SheetClose>
+                <Fragment key={lesson.id}>
+                  {(lessonIndex === 0 || category !== previousCategory) && (
+                    <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase first:pt-1">
+                      {category}
+                    </p>
+                  )}
+
+                  <SheetClose
+                    render={
+                      <Button
+                        type="button"
+                        variant={isCurrent ? 'secondary' : 'ghost'}
+                        className={cn(
+                          'h-auto w-full justify-start gap-3 px-3 py-3 text-left',
+                          isCurrent ? 'font-semibold' : 'font-normal',
+                        )}
+                        aria-current={isCurrent ? 'page' : undefined}
+                        onClick={() => onOpenLesson(lessonIndex)}
+                      />
+                    }
+                  >
+                    <span className="shrink-0">
+                      {lessonNumbers[lessonIndex]}.
+                    </span>
+                    <span className="min-w-0 truncate">
+                      <LessonTitle title={lesson.title} />
+                    </span>
+                  </SheetClose>
+                </Fragment>
               )
             })}
           </nav>

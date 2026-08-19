@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import type { PracticeDatabase } from '../db/practice-database'
 
 import { LessonsSheet } from './lessons-sheet'
+import { ResetDatabaseDialog } from './reset-database-dialog'
 import { SchemaSheet } from './schema-sheet'
 import { WorkspaceViewTabs } from './workspace-view-tabs'
 
@@ -19,10 +20,12 @@ type WorkspaceHeaderProps = {
   currentLesson: number
   database: PracticeDatabase | null
   lessons: readonly {
+    category?: string
     id: string
     title: string
   }[]
   onOpenLesson: (lessonIndex: number) => void
+  onResetDatabase: () => Promise<void>
 }
 
 export function WorkspaceHeader({
@@ -31,6 +34,7 @@ export function WorkspaceHeader({
   database,
   lessons,
   onOpenLesson,
+  onResetDatabase,
 }: WorkspaceHeaderProps) {
   // The dark palette's muted is a neutral grey, which reads as a wash over
   // navy. Retinting it here keeps every hover and open state on the blue.
@@ -51,6 +55,11 @@ export function WorkspaceHeader({
 
       {/* Both panels open from this edge, so their triggers sit on it. */}
       <div className="flex items-center justify-end gap-1 lg:flex-1">
+        <ResetDatabaseDialog
+          disabled={!database}
+          onReset={onResetDatabase}
+        />
+
         <SchemaSheet
           bounds={workspaceSheetBounds}
           database={database}

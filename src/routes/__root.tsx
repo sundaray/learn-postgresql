@@ -11,10 +11,22 @@ import { Agentation } from 'agentation'
 
 import { NavigationProgress } from '@/components/navigation-progress'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { ImpersonationBanner } from '@/features/auth/components/impersonation-banner'
+import { getSession } from '@/features/auth/server/auth.functions'
 
 import appCss from '../styles/app.css?url'
 
 export const Route = createRootRoute({
+  // Read once, on the server, so the first paint already knows whether the
+  // visitor is logged in. Every route below reads it from context rather than
+  // asking again; router.invalidate() is what refreshes it after a login or a
+  // sign-out.
+  beforeLoad: async () => {
+    const session = await getSession()
+
+    return { session }
+  },
+  staleTime: Number.POSITIVE_INFINITY,
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -62,9 +74,12 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
+  const { session } = Route.useRouteContext()
+
   return (
     <RootDocument>
       <Outlet />
+      <ImpersonationBanner session={session} />
     </RootDocument>
   )
 }

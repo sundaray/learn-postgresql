@@ -11,6 +11,6 @@ const schema = postgresqlCourse.dataset.tables.reduce<DatabaseSchema>(
 )
 
 export const practiceWorkspaceConfig = {
-  appName: 'Indexes',
+  appName: 'PostgreSQL',
   schema,
 }

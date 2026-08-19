@@ -2,7 +2,11 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 
 import { MainNavbar } from '@/components/main-navbar'
-import { postgresqlCourse } from '@/features/lessons'
+import {
+  LessonTitle,
+  getLessonNumbersWithinCategory,
+  postgresqlCourse,
+} from '@/features/lessons'
 
 export const Route = createFileRoute('/lessons/')({
   head: () => ({
@@ -11,7 +15,7 @@ export const Route = createFileRoute('/lessons/')({
       {
         name: 'description',
         content:
-          'Hands-on PostgreSQL lessons you run in the browser, from how a statement is executed to reading execution plans.',
+          'Hands-on PostgreSQL lessons you run in the browser, covering execution plans, indexes, and pagination.',
       },
     ],
   }),
@@ -20,6 +24,10 @@ export const Route = createFileRoute('/lessons/')({
 
 function LessonsIndex() {
   const lessons = postgresqlCourse.lessons
+  const categories = [
+    ...new Set(lessons.map((lesson) => lesson.category ?? 'PostgreSQL')),
+  ]
+  const lessonNumbers = getLessonNumbersWithinCategory(lessons, 'PostgreSQL')
 
   return (
     <>
@@ -44,28 +52,38 @@ function LessonsIndex() {
           </p>
         </header>
 
-        <nav aria-label="PostgreSQL lessons" className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold tracking-tight text-navy-600">
-            Indexes
-          </h2>
-          <ol className="flex flex-col gap-3">
-            {lessons.map((lesson, lessonIndex) => (
-              <li key={lesson.id}>
-                <Link
-                  to="/lessons/$lessonSlug"
-                  params={{ lessonSlug: lesson.slug }}
-                  className="group flex gap-3 py-1 transition-colors hover:text-navy-600"
-                >
-                  <span className="text-muted-foreground">
-                    {lessonIndex + 1}.
-                  </span>
-                  <span className="font-normal underline-offset-2 group-hover:underline">
-                    {lesson.title}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ol>
+        <nav aria-label="PostgreSQL lessons" className="flex flex-col gap-8">
+          {categories.map((category) => (
+            <section key={category} className="flex flex-col gap-4">
+              <h2 className="text-xl font-semibold tracking-tight text-navy-600">
+                {category}
+              </h2>
+              <ol className="flex flex-col gap-3">
+                {lessons.map((lesson, lessonIndex) => {
+                  if ((lesson.category ?? 'PostgreSQL') !== category) {
+                    return null
+                  }
+
+                  return (
+                    <li key={lesson.id}>
+                      <Link
+                        to="/lessons/$lessonSlug"
+                        params={{ lessonSlug: lesson.slug }}
+                        className="group flex gap-3 py-1 transition-colors hover:text-navy-600"
+                      >
+                        <span className="text-muted-foreground">
+                          {lessonNumbers[lessonIndex]}.
+                        </span>
+                        <span className="font-normal underline-offset-2 group-hover:underline">
+                          <LessonTitle title={lesson.title} />
+                        </span>
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ol>
+            </section>
+          ))}
         </nav>
       </main>
     </>

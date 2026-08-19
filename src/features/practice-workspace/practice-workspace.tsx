@@ -7,6 +7,8 @@ import type { LessonPlan, LessonStepPlan } from '@/features/lessons'
 import { LessonNavigation } from './components/lesson-navigation'
 import { WorkspaceHeader } from './components/workspace-header'
 import { practiceWorkspaceConfig } from './data/workspace-config'
+import { useDatabaseReset } from './db/use-database-reset'
+import type { DatabaseResetStatus } from './db/use-database-reset'
 import { useLessonSetup } from './db/use-lesson-setup'
 import type { LessonSetupStatus } from './db/use-lesson-setup'
 import { usePracticeDatabase } from './db/use-practice-database'
@@ -39,6 +41,7 @@ function getScratchDraftKey(lesson: LessonPlan) {
 function readWorkspaceStatus(
   databaseStatus: PracticeDatabaseStatus,
   setupStatus: LessonSetupStatus,
+  resetStatus: DatabaseResetStatus,
 ): WorkspaceStatus {
   if (databaseStatus === 'error') {
     return { tone: 'failed', label: 'Playground unavailable' }
@@ -46,6 +49,10 @@ function readWorkspaceStatus(
 
   if (databaseStatus === 'starting') {
     return { tone: 'pending', label: 'Starting the database…' }
+  }
+
+  if (resetStatus === 'resetting') {
+    return { tone: 'pending', label: 'Resetting the database…' }
   }
 
   if (setupStatus === 'error') {
@@ -63,10 +70,12 @@ function readWorkspaceStatus(
 function readRunBlockedReason(
   databaseStatus: PracticeDatabaseStatus,
   setupStatus: LessonSetupStatus,
+  resetStatus: DatabaseResetStatus,
   sql: string,
 ): string | null {
   if (databaseStatus === 'error') return 'The database is unavailable'
   if (databaseStatus === 'starting') return 'Waiting for the database to start'
+  if (resetStatus === 'resetting') return 'Resetting the database'
   if (setupStatus === 'error') return 'Lesson data is not ready'
   if (setupStatus !== 'applied') return 'Preparing the lesson data'
   if (!sql.trim()) return 'Type some SQL to run'
@@ -114,6 +123,7 @@ export function PracticeWorkspace({
   )
   const [sqlDrafts, setSqlDrafts] = useState<Record<string, string>>({})
   const practiceDatabase = usePracticeDatabase()
+  const databaseReset = useDatabaseReset(practiceDatabase.database)
   const {
     clear: clearLastRun,
     lastRun,
@@ -189,6 +199,20 @@ export function PracticeWorkspace({
     })
   }
 
+  /**
+   * The rebuilt schema carries none of the indexes the open lesson expects, and
+   * the results on screen describe rows that no longer exist, so both are put
+   * back in step with the database the learner now has.
+   */
+  async function resetPracticeDatabase() {
+    if (!(await databaseReset.reset())) {
+      return
+    }
+
+    clearLastRun()
+    lessonSetup.reapply()
+  }
+
   function openLesson(nextLessonIndex: number) {
     const nextLesson = lessons[nextLessonIndex]
 
@@ -208,6 +232,16 @@ export function PracticeWorkspace({
       }
     }
 
+    if (databaseReset.error) {
+      return {
+        title: 'The database could not be reset',
+        actionLabel: 'Try again',
+        onAction: () => {
+          void databaseReset.reset()
+        },
+      }
+    }
+
     if (lessonSetup.error) {
       return {
         title: "This lesson couldn't be loaded",
@@ -217,7 +251,13 @@ export function PracticeWorkspace({
     }
 
     return null
-  }, [lessonSetup.error, lessonSetup.reapply, practiceDatabase.error])
+  }, [
+    databaseReset.error,
+    databaseReset.reset,
+    lessonSetup.error,
+    lessonSetup.reapply,
+    practiceDatabase.error,
+  ])
 
   const sharedLayoutProps = {
     activeStepId: activeStep?.id ?? null,
@@ -225,10 +265,15 @@ export function PracticeWorkspace({
     runBlockedReason: readRunBlockedReason(
       practiceDatabase.status,
       lessonSetup.status,
+      databaseReset.status,
       sql,
     ),
     schema,
-    status: readWorkspaceStatus(practiceDatabase.status, lessonSetup.status),
+    status: readWorkspaceStatus(
+      practiceDatabase.status,
+      lessonSetup.status,
+      databaseReset.status,
+    ),
     isRunning: runnerStatus === 'running',
     lesson,
     onLoadSnippet: loadSnippet,
@@ -257,6 +302,7 @@ export function PracticeWorkspace({
         database={practiceDatabase.database}
         lessons={lessons}
         onOpenLesson={openLesson}
+        onResetDatabase={resetPracticeDatabase}
       />
 
       <main

@@ -47,8 +47,9 @@ const failedStatementRun: QueryRun = {
   sql: 'SELECT * FROM prodcts;',
   statements: ['SELECT'],
   rows: [],
-  fieldNames: [],
+  fields: [],
   affectedRows: null,
+  commandTags: [],
   explainOutput: null,
   durationMs: 4.1,
   error: {
@@ -92,6 +93,7 @@ function WorkspaceState({
           database={null}
           lessons={postgresqlCourse.lessons}
           onOpenLesson={() => {}}
+          onResetDatabase={() => Promise.resolve()}
         />
 
         <main className="min-h-0 flex-1">

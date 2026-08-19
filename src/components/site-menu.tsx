@@ -1,5 +1,6 @@
 import { useState, type ComponentProps, type ReactNode } from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useRouteContext, useRouter, useRouterState } from '@tanstack/react-router'
+import { Result } from 'better-result'
 
 import {
   Sheet,
@@ -9,6 +10,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { Spinner } from '@/components/ui/spinner'
+import { signOut } from '@/features/auth/server/auth.functions'
 import { cn } from '@/lib/utils'
 
 /**
@@ -22,6 +25,9 @@ export function SiteMenu() {
   const isHome = useRouterState({
     select: (state) => state.location.pathname === '/',
   })
+  // The root route reads the session before anything renders, so the menu shows
+  // the right state on the first paint instead of flashing "Login".
+  const { session } = useRouteContext({ from: '__root__' })
 
   return (
     <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
@@ -37,7 +43,7 @@ export function SiteMenu() {
       >
         <SheetTitle className="sr-only">Main menu</SheetTitle>
         <SheetDescription className="sr-only">
-          Navigate to the about section or browse the lessons.
+          Navigate to the about section, the lessons, or the blog.
         </SheetDescription>
 
         {/*
@@ -52,7 +58,7 @@ export function SiteMenu() {
           />
         </MenuButtonRow>
 
-        <div className="site-menu-panel w-[min(86vw,28rem)] border-r border-navy-900/10 bg-white shadow-2xl">
+        <div className="site-menu-panel w-[min(86vw,28rem)] overflow-y-auto border-r border-navy-900/10 bg-white pb-10 shadow-2xl">
           <nav
             aria-label="Main navigation"
             className="flex flex-col px-8 pt-32 sm:px-12"
@@ -71,10 +77,87 @@ export function SiteMenu() {
             <SheetClose render={<Link to="/lessons" className="site-menu-link" />}>
               Lessons
             </SheetClose>
+            <SheetClose render={<Link to="/blog" className="site-menu-link" />}>
+              Blog
+            </SheetClose>
+            {session ? null : (
+              <SheetClose render={<Link to="/login" className="site-menu-link" />}>
+                Login
+              </SheetClose>
+            )}
+            {session?.user.role === 'admin' ? (
+              <SheetClose render={<Link to="/admin" className="site-menu-link" />}>
+                Admin
+              </SheetClose>
+            ) : null}
           </nav>
+
+          {session ? (
+            <AccountSection
+              email={session.user.email}
+              onSignedOut={() => setIsMenuOpen(false)}
+            />
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>
+  )
+}
+
+/**
+ * The signed-in footer of the menu panel: who you are, and the way out. Set in
+ * smaller type than the navigation links above it, so it reads as a status area
+ * rather than a fifth destination.
+ */
+function AccountSection({
+  email,
+  onSignedOut,
+}: Readonly<{ email: string; onSignedOut: () => void }>) {
+  const router = useRouter()
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const [signOutFailed, setSignOutFailed] = useState(false)
+
+  async function handleSignOut() {
+    setSignOutFailed(false)
+    setIsSigningOut(true)
+
+    const outcome = await Result.tryPromise(() => signOut())
+
+    setIsSigningOut(false)
+
+    // A rejected call never reached the server; an ok:false one reached it and
+    // came back refused. Neither leaves the visitor signed out, so both show
+    // the same retry hint.
+    if (Result.isError(outcome) || !outcome.value.ok) {
+      setSignOutFailed(true)
+      return
+    }
+
+    onSignedOut()
+    // Re-runs the root route so the menu, and anything else reading the
+    // session, sees a signed-out visitor.
+    await router.invalidate()
+  }
+
+  return (
+    <div className="mt-8 border-t border-navy-900/10 px-8 pt-6 sm:px-12">
+      <p className="text-sm text-slate-500">logged in as</p>
+      <p className="truncate text-base font-semibold text-slate-950">{email}</p>
+      <button
+        type="button"
+        disabled={isSigningOut}
+        onClick={() => void handleSignOut()}
+        className="mt-4 inline-flex items-center gap-2 text-base font-medium text-slate-950 transition-colors hover:text-navy-600 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isSigningOut ? <Spinner className="size-4" /> : null}
+        Sign out
+      </button>
+      {signOutFailed ? (
+        <p className="mt-2 text-sm text-destructive">
+          Couldn&apos;t sign out. Try again.
+        </p>
+      ) : null}
+    </div>
   )
 }
 

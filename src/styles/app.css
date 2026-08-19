@@ -149,6 +149,118 @@
   }
 }
 
+@layer components {
+  /* Blog post bodies. Code fences are rendered by the shared code block, so
+     these rules only cover the surrounding prose and any fence nested inside a
+     list or a quote, which stays a plain `pre`. */
+  .prose {
+    @apply text-base/7 text-foreground/80;
+  }
+
+  .prose > :first-child,
+  .prose > :first-child > :first-child {
+    @apply mt-0;
+  }
+
+  .prose p {
+    @apply mt-5;
+  }
+
+  .prose strong {
+    @apply font-semibold text-foreground;
+  }
+
+  .prose a {
+    @apply font-medium text-navy-600 underline underline-offset-4 hover:no-underline;
+  }
+
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6 {
+    @apply font-semibold tracking-tight text-foreground;
+  }
+
+  .prose h1 {
+    @apply mt-12 text-3xl;
+  }
+
+  .prose h2 {
+    @apply mt-12 text-2xl;
+  }
+
+  .prose h3 {
+    @apply mt-10 text-xl;
+  }
+
+  .prose h4 {
+    @apply mt-8 text-lg;
+  }
+
+  .prose h5,
+  .prose h6 {
+    @apply mt-8 text-base;
+  }
+
+  .prose :is(h1, h2, h3, h4, h5, h6) + * {
+    @apply mt-4;
+  }
+
+  .prose ul {
+    @apply mt-5 list-disc space-y-2 pl-6;
+  }
+
+  .prose ol {
+    @apply mt-5 list-decimal space-y-2 pl-6;
+  }
+
+  .prose li > :is(ul, ol) {
+    @apply mt-2;
+  }
+
+  .prose blockquote {
+    @apply mt-6 border-l-2 border-border pl-5 italic text-muted-foreground;
+  }
+
+  .prose code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.875em] text-foreground;
+  }
+
+  .prose pre {
+    @apply mt-6 overflow-x-auto rounded-lg bg-navy-900 p-4 text-sm/6 text-white;
+  }
+
+  .prose pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+
+  .prose img {
+    @apply mt-8 w-full rounded-lg border border-border;
+  }
+
+  .prose hr {
+    @apply mt-10 border-border;
+  }
+
+  .prose .table-wrapper {
+    @apply mt-8 overflow-x-auto rounded-lg border border-border;
+  }
+
+  .prose table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .prose th {
+    @apply bg-muted px-4 py-2.5 text-left font-semibold text-foreground;
+  }
+
+  .prose td {
+    @apply border-t border-border px-4 py-2.5 align-top;
+  }
+}
+
 /* PostgreSQL prints literal ASCII, so `->` has to stay a dash and a chevron
    rather than the single arrow glyph JetBrains Mono draws for it. This covers
    inline code in the prose, lesson code blocks, and the query results panel. */
