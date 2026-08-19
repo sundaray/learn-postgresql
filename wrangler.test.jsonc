@@ -1,0 +1,24 @@
+{
+  // Test-only. The production worker is configured in TypeScript by
+  // alchemy.run.ts, which emits no wrangler config, but
+  // @cloudflare/vitest-pool-workers reads its bindings from one. This file
+  // exists solely so the workerd test runner has a D1 binding to hand tests.
+  //
+  // It deliberately does not mirror the production worker: no secrets, no
+  // assets, no entry module. The two things that must not drift from
+  // alchemy.run.ts are the compatibility date and the flag list, because those
+  // decide which runtime behaviours the tests observe. Alchemy resolves the
+  // date from its own default (Cloudflare/Workers/Compatibility.js) rather than
+  // from alchemy.run.ts, so re-check it after an alchemy upgrade.
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "learn-postgresql-test",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "learn-postgresql-test-db",
+      "database_id": "learn-postgresql-test-db"
+    }
+  ]
+}
