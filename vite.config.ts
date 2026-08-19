@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import contentCollections from '@content-collections/vite'
 import tailwindcss from '@tailwindcss/vite'
@@ -32,6 +34,21 @@ export default defineConfig({
   },
   resolve: {
     tsconfigPaths: true,
+    // @pierre/diffs imports `bundledLanguages` from `shiki`, which lazily
+    // imports every grammar Shiki ships. Those stay separate chunks in Node and
+    // the browser, but a Worker is one script, so all of them shipped and the
+    // upload exceeded Cloudflare's size limit. The stand-in registers only the
+    // languages this site can render. Anchored so the `shiki/core`,
+    // `shiki/wasm` and `shiki/engine/*` entries still resolve to the real
+    // package, since the stand-in is built out of those.
+    alias: [
+      {
+        find: /^shiki$/,
+        replacement: fileURLToPath(
+          new URL('./src/lib/shiki-slim.ts', import.meta.url),
+        ),
+      },
+    ],
   },
   optimizeDeps: {
     exclude: ['@electric-sql/pglite'],
