@@ -6,7 +6,7 @@ import { SITE_AUTHOR } from './src/lib/site'
 
 const blogPostSchema = zod.object({
   title: zod.string(),
-  description: zod.string(),
+  description: zod.string().optional(),
   postedOn: zod.string().date(),
   updatedOn: zod.string().date().optional(),
   categories: zod.array(zod.string()).min(1),
@@ -23,7 +23,7 @@ const blogPosts = defineCollection({
   schema: blogPostSchema,
   transform: async (document) => ({
     title: document.title,
-    description: document.description,
+    description: document.description ?? null,
     postedOn: document.postedOn,
     updatedOn: document.updatedOn ?? null,
     categories: document.categories,

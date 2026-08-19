@@ -1,5 +1,5 @@
 import { useState, type ComponentProps, type ReactNode } from 'react'
-import { Link, useRouteContext, useRouter, useRouterState } from '@tanstack/react-router'
+import { Link, useRouteContext, useRouter } from '@tanstack/react-router'
 import { Result } from 'better-result'
 
 import {
@@ -20,11 +20,6 @@ import { cn } from '@/lib/utils'
  */
 export function SiteMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  // About is a section of the home page, so off home it needs a real
-  // navigation rather than an in-page anchor.
-  const isHome = useRouterState({
-    select: (state) => state.location.pathname === '/',
-  })
   // The root route reads the session before anything renders, so the menu shows
   // the right state on the first paint instead of flashing "Login".
   const { session } = useRouteContext({ from: '__root__' })
@@ -43,7 +38,7 @@ export function SiteMenu() {
       >
         <SheetTitle className="sr-only">Main menu</SheetTitle>
         <SheetDescription className="sr-only">
-          Navigate to the about section, the lessons, or the blog.
+          Navigate to the about page, the lessons, or the blog.
         </SheetDescription>
 
         {/*
@@ -63,15 +58,7 @@ export function SiteMenu() {
             aria-label="Main navigation"
             className="flex flex-col px-8 pt-32 sm:px-12"
           >
-            <SheetClose
-              render={
-                isHome ? (
-                  <a href="#about" className="site-menu-link" />
-                ) : (
-                  <Link to="/" hash="about" className="site-menu-link" />
-                )
-              }
-            >
+            <SheetClose render={<Link to="/about" className="site-menu-link" />}>
               About
             </SheetClose>
             <SheetClose render={<Link to="/lessons" className="site-menu-link" />}>

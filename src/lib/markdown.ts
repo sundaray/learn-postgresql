@@ -12,14 +12,33 @@ import { SKIP, visit } from 'unist-util-visit'
  * fenced code blocks are handed to the same Pierre code block the lessons use
  * instead of being written out as plain `<pre>`.
  */
+/**
+ * The lines a fence asked to call out, as 1-based line numbers. `added` and
+ * `removed` are painted the way a diff paints a changed line; `marked` is a
+ * neutral emphasis for lines that are not a change.
+ */
+export type CodeHighlights = {
+  marked: number[]
+  added: number[]
+  removed: number[]
+}
+
 export type MarkdownSegment =
   | { type: 'html'; html: string }
-  | { type: 'code'; name: string; contents: string }
+  | {
+      type: 'code'
+      name: string
+      contents: string
+      highlights: CodeHighlights
+    }
 
-type CodeBlock = { name: string; contents: string }
+type CodeBlock = { name: string; contents: string; highlights: CodeHighlights }
 
 /** Marks where a code block was lifted out, so the HTML can be split on it. */
 const CODE_MARKER_PREFIX = 'code-block:'
+
+/** Serializes as `data-fence-meta`, which survives `rehype-raw`. */
+const FENCE_META_PROPERTY = 'dataFenceMeta'
 
 /** Pierre reads the language off the file name, the way the lessons do. */
 const codeFileExtensions: Record<string, string> = {
@@ -57,6 +76,10 @@ interface HastElement {
   tagName: string
   properties?: {
     className?: unknown
+    [FENCE_META_PROPERTY]?: unknown
+  }
+  data?: {
+    meta?: unknown
   }
   children?: unknown[]
 }
@@ -113,6 +136,26 @@ function rehypeWrapTables() {
   }
 }
 
+/**
+ * A fence's meta, the `{3,7-9}` after the language, arrives on the code
+ * element's `data`. `rehype-raw` rebuilds the tree by serializing it to HTML
+ * and parsing it back, and `data` does not survive that round trip, so the meta
+ * is copied to an attribute first and read off that later.
+ */
+function rehypeKeepFenceMeta() {
+  return (tree: HastRoot) => {
+    visit(tree, (node: unknown) => {
+      if (!isElementNode(node) || node.tagName !== 'code') return
+
+      const meta = node.data?.meta
+
+      if (typeof meta !== 'string' || !meta) return
+
+      node.properties = { ...node.properties, [FENCE_META_PROPERTY]: meta }
+    })
+  }
+}
+
 function readElementText(node: unknown): string {
   if (isTextNode(node)) return node.value
   if (hasChildren(node)) {
@@ -134,6 +177,72 @@ function readFenceLanguage(codeElement: HastElement): string {
   }
 
   return ''
+}
+
+/**
+ * Reads the lines a fence asked to call out, written after the language as
+ * ```ts {3, +9, -12, 16-18}. A bare number is a neutral highlight, `+` marks
+ * the line as an addition, and `-` marks it as a removal; a prefix carries
+ * across a range. Line numbers past the end of the block are dropped, so a
+ * typo in a range cannot generate rules for thousands of lines that do not
+ * exist.
+ */
+function readCodeHighlights(
+  codeElement: HastElement,
+  lineCount: number,
+): CodeHighlights {
+  const meta = codeElement.properties?.[FENCE_META_PROPERTY]
+  const empty: CodeHighlights = { marked: [], added: [], removed: [] }
+
+  if (typeof meta !== 'string') return empty
+
+  const braced = meta.match(/\{([^}]*)\}/)
+  const list = braced?.[1]
+
+  if (!list) return empty
+
+  const collected = {
+    marked: new Set<number>(),
+    added: new Set<number>(),
+    removed: new Set<number>(),
+  }
+
+  for (const entry of list.split(',')) {
+    const parsed = entry.trim().match(/^([+-])?(\d+)(?:\s*-\s*(\d+))?$/)
+    const rangeStart = parsed?.[2]
+
+    if (!rangeStart) continue
+
+    const start = Number(rangeStart)
+    const end = parsed[3] === undefined ? start : Number(parsed[3])
+
+    if (start < 1 || end < start) continue
+
+    const prefix = parsed[1]
+    const target =
+      prefix === '+'
+        ? collected.added
+        : prefix === '-'
+          ? collected.removed
+          : collected.marked
+
+    for (
+      let lineNumber = start;
+      lineNumber <= Math.min(end, lineCount);
+      lineNumber += 1
+    ) {
+      target.add(lineNumber)
+    }
+  }
+
+  const sorted = (lineNumbers: Set<number>) =>
+    [...lineNumbers].sort((first, second) => first - second)
+
+  return {
+    marked: sorted(collected.marked),
+    added: sorted(collected.added),
+    removed: sorted(collected.removed),
+  }
 }
 
 function buildCodeFileName(
@@ -166,6 +275,9 @@ function rehypeExtractCodeBlocks(codeBlocks: CodeBlock[], namePrefix: string) {
       if (!isElementNode(codeElement)) return
 
       const blockIndex = codeBlocks.length
+      // remark adds a closing newline that the code block would render as an
+      // empty last line.
+      const contents = readElementText(codeElement).replace(/\n$/, '')
 
       codeBlocks.push({
         name: buildCodeFileName(
@@ -173,9 +285,11 @@ function rehypeExtractCodeBlocks(codeBlocks: CodeBlock[], namePrefix: string) {
           blockIndex,
           readFenceLanguage(codeElement),
         ),
-        // remark adds a closing newline that the code block would render as an
-        // empty last line.
-        contents: readElementText(codeElement).replace(/\n$/, ''),
+        contents,
+        highlights: readCodeHighlights(
+          codeElement,
+          contents.split('\n').length,
+        ),
       })
 
       parent.children[index] = {
@@ -184,6 +298,13 @@ function rehypeExtractCodeBlocks(codeBlocks: CodeBlock[], namePrefix: string) {
       }
 
       return SKIP
+    })
+
+    visit(tree, (node: unknown) => {
+      if (!isElementNode(node) || node.tagName !== 'code') return
+      if (!node.properties) return
+
+      delete node.properties[FENCE_META_PROPERTY]
     })
   }
 }
@@ -213,6 +334,7 @@ function splitHtmlIntoSegments(
         type: 'code',
         name: codeBlock.name,
         contents: codeBlock.contents,
+        highlights: codeBlock.highlights,
       })
     }
 
@@ -242,6 +364,7 @@ export async function renderMarkdownToSegments(
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeKeepFenceMeta)
     .use(rehypeRaw)
     .use(rehypeSlug)
     .use(rehypeWrapTables)

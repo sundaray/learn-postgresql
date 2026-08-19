@@ -3,7 +3,7 @@ import { allBlogPosts } from 'content-collections'
 
 import { MainNavbar } from '@/components/main-navbar'
 import {
-  BackToBlogLink,
+  BlogBreadcrumbs,
   BlogPostList,
   findCategoryBySlug,
   findPostsByCategorySlug,
@@ -47,8 +47,8 @@ function BlogTagPage() {
 
       <main className="mx-auto mt-16 flex max-w-3xl flex-col gap-10 px-6 py-16">
         <header className="flex flex-col gap-3">
-          <BackToBlogLink />
-          <h1 className="text-4xl font-semibold tracking-tight">
+          <BlogBreadcrumbs trail={['Tags', categoryName ?? tag]} />
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight">
             {posts.length} {posts.length === 1 ? 'post' : 'posts'} tagged “
             {categoryName}”
           </h1>

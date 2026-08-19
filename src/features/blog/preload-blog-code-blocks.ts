@@ -1,7 +1,7 @@
 import { preloadFile } from '@pierre/diffs/ssr'
 import { createServerFn } from '@tanstack/react-start'
 
-import { codeBlockFileOptions } from '@/components/code-block-options'
+import { buildCodeBlockFileOptions } from '@/components/code-block-options'
 
 import { findPostBySlug } from './blog'
 
@@ -36,7 +36,7 @@ export const preloadBlogCodeBlocks = createServerFn({ method: 'GET' })
         .map((segment) =>
           preloadFile({
             file: { name: segment.name, contents: segment.contents },
-            options: codeBlockFileOptions,
+            options: buildCodeBlockFileOptions(segment.highlights),
           }),
         ),
     )

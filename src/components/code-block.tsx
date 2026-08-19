@@ -12,7 +12,8 @@ import { CheckIcon, ClipboardIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import type { CodeBlockPreloads } from '@/components/code-block-options'
-import { codeBlockFileOptions } from '@/components/code-block-options'
+import { buildCodeBlockFileOptions } from '@/components/code-block-options'
+import type { CodeHighlights } from '@/lib/markdown'
 import {
   Tooltip,
   TooltipContent,
@@ -38,15 +39,28 @@ export function CodeBlockPreloadProvider({
 type CodeBlockProps = {
   name: string
   contents: string
+  /** Lines to call out, as the fence's `{3, +9, -12}` asked for. */
+  highlights?: CodeHighlights
   /** Rendered under the block, for controls only one caller needs. */
   action?: ReactNode
 }
 
-export function CodeBlock({ contents, name, action }: CodeBlockProps) {
+export function CodeBlock({
+  contents,
+  name,
+  highlights,
+  action,
+}: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const preloads = useContext(CodeBlockPreloadContext)
   const file = useMemo(() => ({ name, contents }), [name, contents])
+  // Must match the options the preload used, or the prerendered markup and the
+  // hydrated render disagree about the highlight CSS.
+  const options = useMemo(
+    () => buildCodeBlockFileOptions(highlights),
+    [highlights],
+  )
   const prerenderedHTML = preloads[name]
   /** A one-line block is too short to pin the button to the top without it
       looking top-heavy, so it gets centred instead. */
@@ -87,7 +101,7 @@ export function CodeBlock({ contents, name, action }: CodeBlockProps) {
       <div className="dark relative overflow-hidden rounded-lg border bg-background text-sm leading-normal">
         <File
           file={file}
-          options={codeBlockFileOptions}
+          options={options}
           {...(prerenderedHTML ? { prerenderedHTML } : {})}
         />
 

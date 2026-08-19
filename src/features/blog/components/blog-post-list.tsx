@@ -32,9 +32,11 @@ export function BlogPostList({
             <h2 className="mt-2 text-xl font-semibold tracking-tight underline-offset-4 transition-colors group-hover:text-navy-600 group-hover:underline">
               {post.title}
             </h2>
-            <p className="mt-2 text-base/7 text-foreground/70">
-              {post.description}
-            </p>
+            {post.description ? (
+              <p className="mt-2 text-base/7 text-foreground/70">
+                {post.description}
+              </p>
+            ) : null}
           </div>
         </Link>
       ))}

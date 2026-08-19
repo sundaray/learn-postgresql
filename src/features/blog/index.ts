@@ -8,6 +8,7 @@ export {
 } from './blog'
 export type { BlogPost, BlogPostSegment } from './blog'
 export { BackToBlogLink } from './components/back-to-blog-link'
+export { BlogBreadcrumbs } from './components/blog-breadcrumbs'
 export { BlogPostContent } from './components/blog-post-content'
 export { BlogPostList } from './components/blog-post-list'
 export { preloadBlogCodeBlocks } from './preload-blog-code-blocks'

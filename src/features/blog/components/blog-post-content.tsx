@@ -17,7 +17,11 @@ export function BlogPostContent({
       {segments.map((segment, segmentIndex) =>
         segment.type === 'code' ? (
           <div key={segment.name} className="mt-6 first:mt-0">
-            <CodeBlock name={segment.name} contents={segment.contents} />
+            <CodeBlock
+              name={segment.name}
+              contents={segment.contents}
+              highlights={segment.highlights}
+            />
           </div>
         ) : (
           <div

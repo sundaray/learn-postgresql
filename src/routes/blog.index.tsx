@@ -1,8 +1,8 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { allBlogPosts } from 'content-collections'
-import { ArrowLeft } from 'lucide-react'
 
 import { MainNavbar } from '@/components/main-navbar'
+import { PageBreadcrumbs } from '@/components/page-breadcrumbs'
 import { BlogPostList, sortPostsByNewest } from '@/features/blog'
 import { SITE_NAME, SITE_URL } from '@/lib/site'
 
@@ -29,17 +29,8 @@ function BlogIndex() {
 
       <main className="mx-auto mt-16 flex max-w-3xl flex-col gap-10 px-6 py-16">
         <header className="flex flex-col gap-3">
-          <Link
-            to="/"
-            className="group flex w-fit items-center gap-2 text-sm text-foreground/70 transition-colors hover:text-navy-600"
-          >
-            <ArrowLeft
-              aria-hidden
-              className="size-4 transition-transform duration-200 ease-out group-hover:-translate-x-1"
-            />
-            Home
-          </Link>
-          <h1 className="text-4xl font-semibold tracking-tight">Blog</h1>
+          <PageBreadcrumbs trail={['Blog']} />
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight">Blog</h1>
           <p className="text-lg leading-7 text-foreground/70">
             {BLOG_DESCRIPTION}
           </p>

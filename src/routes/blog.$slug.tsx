@@ -3,7 +3,7 @@ import { Link, createFileRoute, notFound } from '@tanstack/react-router'
 import { CodeBlockPreloadProvider } from '@/components/code-block'
 import { MainNavbar } from '@/components/main-navbar'
 import {
-  BackToBlogLink,
+  BlogBreadcrumbs,
   BlogPostContent,
   findPostBySlug,
   formatPostDate,
@@ -34,9 +34,13 @@ export const Route = createFileRoute('/blog/$slug')({
     return {
       meta: [
         { title: `${post.title} | ${SITE_NAME}` },
-        { name: 'description', content: post.description },
+        ...(post.description
+          ? [
+              { name: 'description', content: post.description },
+              { property: 'og:description', content: post.description },
+            ]
+          : []),
         { property: 'og:title', content: post.title },
-        { property: 'og:description', content: post.description },
         { property: 'og:type', content: 'article' },
         { property: 'og:url', content: canonicalUrl },
         { property: 'article:published_time', content: post.postedOn },
@@ -56,7 +60,7 @@ export const Route = createFileRoute('/blog/$slug')({
             '@context': 'https://schema.org',
             '@type': 'BlogPosting',
             headline: post.title,
-            description: post.description,
+            ...(post.description ? { description: post.description } : {}),
             ...(imageUrl ? { image: [imageUrl] } : {}),
             datePublished: post.postedOn,
             dateModified: post.updatedOn ?? post.postedOn,
@@ -104,20 +108,31 @@ function BlogPostPage() {
       <main className="mx-auto mt-16 flex max-w-3xl flex-col gap-10 px-6 py-16">
         <article>
           <header className="flex flex-col gap-3">
-            <BackToBlogLink />
-            <h1 className="text-pretty text-4xl font-semibold tracking-tight">
+            <BlogBreadcrumbs />
+            <h1 className="mt-3 text-pretty text-4xl font-semibold tracking-tight">
               {post.title}
             </h1>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{post.author}</span>
-              <span aria-hidden="true">·</span>
-              <span>Posted on {formatPostDate(post.postedOn)}</span>
-              {post.updatedOn ? (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span>Updated on {formatPostDate(post.updatedOn)}</span>
-                </>
-              ) : null}
+            <div className="mt-1 flex items-center gap-3">
+              <img
+                src="/images/hemanta-sundaray.jpg"
+                alt=""
+                width={256}
+                height={256}
+                className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border ring-offset-2 ring-offset-background"
+              />
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {post.author}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>Posted on {formatPostDate(post.postedOn)}</span>
+                {post.updatedOn ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>Updated on {formatPostDate(post.updatedOn)}</span>
+                  </>
+                ) : null}
+              </div>
             </div>
             {post.image ? (
               <img
